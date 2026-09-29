@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CotaFácil B2B - Cotação & Compras Inteligentes</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .font-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-feature-settings: 'tnum' on, 'zero' on;
+    }
+  </style>
+</head>
+<body class="bg-neutral-100 text-neutral-900 min-h-screen flex flex-col items-center selection:bg-neutral-900 selection:text-white">
+
+  <!-- Top App Navigation Pill & Desktop/Mobile Switcher -->
+  <header id="main-header" class="sticky top-0 z-50 w-full bg-neutral-950 text-white px-4 lg:px-8 py-2.5 flex items-center justify-between text-xs font-medium border-b border-neutral-800 shadow-md transition-all">
+    <div class="flex items-center gap-3">
+      <div class="flex items-center gap-1.5 font-bold tracking-tight text-white">
+        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+        <span>CotaFácil B2B</span>
+      </div>
+
+      <span class="text-neutral-700 hidden sm:inline">|</span>
+
+      <nav class="flex items-center gap-1" aria-label="Navegação rápida de blocos">
+        <button onclick="switchScreen('view-login')" id="nav-btn-login" class="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white transition-colors cursor-pointer">
+          Login (B4)
+        </button>
+        <button onclick="switchScreen('view-launch')" id="nav-btn-launch" class="px-2.5 py-1 rounded-lg text-emerald-400/90 hover:text-emerald-300 font-semibold transition-colors cursor-pointer flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <span>+ Lançar Lista</span>
+        </button>
+        <button onclick="switchScreen('view-quotation')" id="nav-btn-quotation" class="px-2.5 py-1 rounded-lg bg-white text-neutral-900 font-bold transition-colors cursor-pointer">
+          Lojista (B1)
+        </button>
+        <button onclick="switchScreen('view-analytics')" id="nav-btn-analytics" class="px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white transition-colors cursor-pointer">
+          Analítica (B2/3)
+        </button>
+        <button onclick="switchScreen('view-admin')" id="nav-btn-admin" class="px-2.5 py-1 rounded-lg text-amber-400/90 hover:text-amber-300 transition-colors cursor-pointer">
+          Admin (B5)
+        </button>
+      </nav>
+    </div>
+
+    <!-- Toggle de Modo: Desktop Completo vs Simulador Mobile -->
+    <div class="hidden sm:flex items-center gap-1 bg-neutral-900 p-0.5 rounded-lg border border-neutral-800 text-[11px]">
+      <button id="btn-mode-desktop" onclick="setDeviceMode('desktop')" class="px-2.5 py-1 rounded-md font-bold bg-neutral-800 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        <span>Versão Desktop</span>
+      </button>
+      <button id="btn-mode-mobile" onclick="setDeviceMode('mobile')" class="px-2.5 py-1 rounded-md font-medium text-neutral-400 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer">
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+        <span>Simulador Mobile</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Container: Adapta entre Widescreen e Mobile Mockup -->
+  <div id="app-wrapper" class="w-full transition-all duration-300 flex-1 flex flex-col justify-start bg-neutral-50/60">
+    <div id="app" class="w-full max-w-7xl mx-auto flex-1 flex flex-col transition-all duration-300">
+      
+      <!-- ======================================================== -->
+      <!-- BLOCO 4: TELA DE LOGIN E ACESSO UNIFICADO               -->
+      <!-- ======================================================== -->
+      <div id="view-login" class="flex-1 flex flex-col lg:flex-row bg-white min-h-[calc(100vh-45px)] hidden">
+        <!-- Desktop Left Showcase Column -->
+        <div class="hidden lg:flex lg:w-1/2 bg-neutral-950 text-white p-12 flex-col justify-between relative overflow-hidden border-r border-neutral-800">
+          <div class="relative z-10 space-y-8">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-white text-neutral-950 flex items-center justify-center font-extrabold text-lg font-num shadow-sm">
+                C•
+              </div>
+              <div>
+                <span class="font-bold text-lg tracking-tight">CotaFácil B2B</span>
+                <span class="block text-[11px] text-neutral-400">Enterprise Procurement Suite</span>
+              </div>
+            </div>
+
+            <div class="space-y-4 max-w-md pt-6">
+              <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 font-medium">
+                <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                Menor Preço de Mercado Entre Fornecedores
+              </div>
+
+              <h2 class="text-3xl font-extrabold tracking-tight text-white leading-tight">
+                A melhor cotação do seu hortifrúti em minutos, não em horas.
+              </h2>
+
+              <p class="text-sm text-neutral-400 leading-relaxed">
+                Cruze automaticamente preços unitários de múltiplos fornecedores e representantes. O sistema valida pedidos mínimos, evita perdas e garante compras no menor custo de balcão.
+              </p>
+            </div>
+
+            <!-- Metrics Cards on Desktop Showcase -->
+            <div class="grid grid-cols-2 gap-3 max-w-md pt-4">
+              <div class="p-4 rounded-xl bg-neutral-900/80 border border-neutral-800 space-y-1">
+                <div class="text-xs text-emerald-400 font-semibold">18.4% Economia Média</div>
+                <div class="text-xs text-neutral-400">Comprovada em compras semanais</div>
+              </div>
+              <div class="p-4 rounded-xl bg-neutral-900/80 border border-neutral-800 space-y-1">
+                <div class="text-xs text-sky-400 font-semibold">Zero Ruído</div>
+                <div class="text-xs text-neutral-400">Validação automática de pedido mínimo</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="relative z-10 pt-8 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-500">
+            <span>Suporte 24/7 para Lojistas e Ceasas</span>
+            <span>v2.4 Enterprise</span>
+          </div>
+        </div>
+
+        <!-- Login Form Right Column -->
+        <div class="flex-1 flex flex-col justify-center items-center px-6 lg:px-12 py-10 max-w-md mx-auto w-full">
+          <div class="w-full space-y-6">
+            <!-- Brand header (mobile and form) -->
+            <div class="text-center space-y-2">
+              <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-neutral-900 text-white shadow-xs border border-neutral-800 lg:hidden">
+                <span class="font-extrabold text-xl tracking-tighter font-num">C•</span>
+              </div>
+              <div>
+                <h1 class="text-xl lg:text-2xl font-bold tracking-tight text-neutral-900">Acesse sua conta</h1>
+                <p class="text-xs text-neutral-500 font-medium mt-0.5">Plataforma de Cotações Inteligentes B2B</p>
+              </div>
+            </div>
+
+            <!-- Abas de Seleção Rápida (Tabs) -->
+            <div class="bg-neutral-100 p-1 rounded-xl flex items-center border border-neutral-200">
+              <button id="tab-btn-lojista" onclick="setLoginTab('lojista')" class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all bg-white text-neutral-900 shadow-xs cursor-pointer">
+                Sou Lojista
+              </button>
+              <button id="tab-btn-fornecedor" onclick="setLoginTab('fornecedor')" class="flex-1 py-2 text-xs font-semibold rounded-lg transition-all text-neutral-500 hover:text-neutral-900 cursor-pointer">
+                Sou Fornecedor
+              </button>
+            </div>
+
+            <!-- Formulário: Sou Lojista -->
+            <div id="form-lojista" class="space-y-3.5">
+              <div class="space-y-1">
+                <label class="text-[11px] font-bold text-neutral-700 tracking-wide uppercase">E-mail ou Slug da Loja</label>
+                <input type="text" id="login-slug" value="" placeholder="Digite o e-mail ou slug da sua loja" class="w-full px-3.5 py-3 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs text-neutral-900 focus:outline-hidden transition-all shadow-xs" />
+                <p class="text-[10px] text-neutral-400">Acesse via seu slug personalizado de lojista ou e-mail.</p>
+              </div>
+
+              <div class="space-y-1">
+                <div class="flex items-center justify-between">
+                  <label class="text-[11px] font-bold text-neutral-700 tracking-wide uppercase">Senha</label>
+                  <button type="button" onclick="alert('Instruções de recuperação foram enviadas ao e-mail.')" class="text-[11px] text-neutral-500 hover:text-neutral-900 font-medium cursor-pointer">Esqueceu sua senha?</button>
+                </div>
+                <div class="relative">
+                  <input type="password" id="login-password" value="" placeholder="Digite sua senha de acesso" class="w-full pl-3.5 pr-10 py-3 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs text-neutral-900 focus:outline-hidden transition-all shadow-xs" />
+                  <button type="button" onclick="togglePasswordVisibility('login-password')" class="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-700 cursor-pointer p-1">
+                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                  </button>
+                </div>
+              </div>
+
+              <button onclick="handleLoginLojistaSubmit()" class="w-full py-3 px-4 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold shadow-xs active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer mt-2">
+                <span>Entrar no Painel</span>
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              </button>
+
+              <div class="pt-2 text-center">
+                <button type="button" onclick="alert('Iniciando período de teste gratuito de 7 dias!')" class="w-full py-2.5 px-3 rounded-xl border-2 border-neutral-200 text-neutral-800 hover:bg-neutral-50 text-xs font-semibold transition-colors cursor-pointer">
+                  Criar uma conta (Teste Grátis por 7 dias)
+                </button>
+              </div>
+            </div>
+
+            <!-- Formulário: Sou Fornecedor -->
+            <div id="form-fornecedor" class="space-y-3.5 hidden">
+              <div class="p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-600">
+                Acesse como representante de vendas selecionando o fornecedor para auditar preços:
+              </div>
+
+              <div class="space-y-2">
+                <label class="text-[11px] font-semibold text-neutral-700 tracking-wide uppercase">Selecione seu Fornecedor</label>
+                <div class="grid grid-cols-2 gap-2">
+                  <button id="btn-quick-v1" onclick="selectVendorLogin('v1')" class="p-2.5 rounded-xl border border-neutral-900 bg-neutral-900 text-white text-left text-xs font-semibold cursor-pointer">
+                    Distribuidora Bom Preço
+                  </button>
+                  <button id="btn-quick-v2" onclick="selectVendorLogin('v2')" class="p-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-left text-xs hover:bg-white cursor-pointer">
+                    Hortifrúti Ceasa Sul
+                  </button>
+                </div>
+              </div>
+
+              <button onclick="openVendorAnalytics(currentSelectedVendorLogin); switchScreen('view-analytics');" class="w-full py-3 px-4 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer mt-1">
+                <span>Acessar Cotação Ativa</span>
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              </button>
+            </div>
+
+            <div class="pt-4 border-t border-neutral-100 text-center">
+              <button onclick="switchScreen('view-admin')" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-neutral-100 hover:bg-neutral-200 text-neutral-700 text-[11px] font-medium transition-colors cursor-pointer">
+                <span>Acesso Administrativo (Super Admin)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- PASSO 1: TELA PRINCIPAL (NÍVEL 1) - DETALHES DA COTAÇÃO  -->
+      <!-- ======================================================== -->
+      <div id="view-quotation" class="flex-1 flex flex-col pb-12 w-full">
+        <!-- Header Fixo da Cotação -->
+        <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 px-4 lg:px-8 py-3.5 shadow-2xs">
+          <div class="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-[11px] font-bold tracking-wider uppercase text-neutral-400">Painel do Lojista</span>
+                <span class="text-neutral-300">•</span>
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700 text-xs font-medium">
+                  <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                  Em Cotação
+                </span>
+                <span class="text-neutral-300">•</span>
+                <span class="inline-flex items-center gap-1 text-xs text-neutral-600 bg-neutral-50 px-2 py-0.5 rounded-full border border-neutral-200/80">
+                  <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span>Restam:</span>
+                  <strong id="countdown-timer" class="font-num text-neutral-900">03:41:22</strong>
+                </span>
+              </div>
+              <h1 class="text-base lg:text-xl font-bold tracking-tight text-neutral-900">Feira Semanal - Hortifrúti</h1>
+            </div>
+
+            <div class="flex items-center gap-2">
+              <button onclick="switchScreen('view-launch')" class="px-3 py-1.5 rounded-xl bg-neutral-900 text-white text-xs font-semibold hover:bg-neutral-800 transition-colors shadow-2xs cursor-pointer flex items-center gap-1.5">
+                <span>+ Lançar Nova Lista</span>
+              </button>
+              <button onclick="switchScreen('view-admin')" class="px-3 py-1.5 rounded-xl border border-neutral-200 text-neutral-700 hover:bg-neutral-100 text-xs font-medium transition-colors cursor-pointer">
+                Módulo Super Admin
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 pt-5 space-y-6 flex-1">
+          <!-- Card de Resumo Financeiro (Valor Total Otimizado) -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="md:col-span-2 p-5 rounded-2xl bg-neutral-900 text-white shadow-xs relative overflow-hidden flex flex-col justify-between">
+              <div>
+                <div class="flex items-center justify-between text-neutral-400 text-xs">
+                  <span class="font-medium tracking-wide uppercase text-[11px]">Resumo do Mercado</span>
+                  <span class="px-2.5 py-0.5 rounded-full bg-neutral-800 text-[10px] text-emerald-400 font-semibold border border-neutral-700/60">Menor Custo Possível</span>
+                </div>
+                <div class="mt-3">
+                  <div class="text-xs text-neutral-400 font-medium">Valor Total Otimizado</div>
+                  <div class="text-2xl sm:text-3xl lg:text-4xl font-extrabold font-num tracking-tight text-white mt-1" id="total-optimized-display">
+                    R$ 4.792,00
+                  </div>
+                </div>
+              </div>
+              <div class="mt-4 pt-3.5 border-t border-neutral-800 flex items-center justify-between text-xs text-neutral-400">
+                <span>12 produtos precificados</span>
+                <span class="text-emerald-400 font-semibold">Economia estimada: 18.4%</span>
+              </div>
+            </div>
+
+            <div class="p-5 rounded-2xl bg-white border border-neutral-200/90 shadow-2xs flex flex-col justify-between">
+              <div>
+                <span class="text-[11px] font-semibold uppercase tracking-wider text-neutral-500">Economia Real</span>
+                <div class="text-xl sm:text-2xl font-bold font-num text-emerald-700 mt-2">~R$ 881,72</div>
+                <p class="text-xs text-neutral-500 mt-1 leading-relaxed">Diferença em relação aos concorrentes mais caros.</p>
+              </div>
+              <div class="text-[11px] text-neutral-400 pt-3 border-t border-neutral-100">Atualizado dinamicamente</div>
+            </div>
+          </div>
+
+          <!-- Responsive 2-Column Section on Desktop -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <!-- Left Side: Suppliers Grid / Vertical list (Spans 8 cols) -->
+            <div class="lg:col-span-8 space-y-4">
+              <div class="flex items-center justify-between">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-500">
+                  Representantes & Fornecedores (4)
+                </h2>
+                <span class="text-xs text-neutral-400">Clique para auditar lances item a item</span>
+              </div>
+
+              <div id="vendors-list-container" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <!-- Injetado via JS -->
+              </div>
+
+              <!-- Dica Operacional -->
+              <div class="p-4 rounded-2xl border border-neutral-200/90 bg-white shadow-2xs text-xs text-neutral-600 flex items-start gap-3">
+                <div>
+                  <span class="font-bold text-neutral-900 block mb-0.5">Dica Operacional:</span>
+                  <p class="leading-relaxed text-neutral-600">
+                    O sistema cruza os valores unitários de cada representante e calcula o menor preço de balcão disponível. Clique em qualquer fornecedor para inspecionar os lances item a item e conferir se ele atinge o <strong>Pedido Mínimo</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right Side: Cesta de Produtos em Cotação (Spans 4 cols on Desktop) -->
+            <div class="hidden lg:block lg:col-span-4 bg-white border border-neutral-200/90 rounded-2xl p-5 shadow-2xs space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-neutral-100">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-neutral-700">Cesta de Produtos (12)</h3>
+                <button onclick="switchScreen('view-launch')" class="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer">
+                  <span>+ Editar / Nova Lista</span>
+                </button>
+              </div>
+              <div id="desktop-basket-container" class="space-y-2 max-h-[460px] overflow-y-auto pr-1 text-xs">
+                <!-- Injetado via JS -->
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- PASSO 2: VISÃO ANALÍTICA DO FORNECEDOR (NÍVEL 2)         -->
+      <!-- ======================================================== -->
+      <div id="view-analytics" class="flex-1 flex flex-col hidden pb-36 lg:pb-12 max-w-7xl mx-auto w-full px-4 lg:px-8 pt-4">
+        <!-- Sub-Header with Back Button and Scenario Switcher -->
+        <header class="sticky top-0 lg:static z-30 bg-white/95 backdrop-blur-md border border-neutral-200/90 rounded-2xl px-4 lg:px-6 py-3.5 shadow-2xs mb-4">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <button onclick="switchScreen('view-quotation')" class="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 hover:text-neutral-950 py-1.5 px-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200/80 transition-colors cursor-pointer">
+                <svg class="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                <span>Voltar à Cotação</span>
+              </button>
+
+              <div>
+                <div class="flex items-center gap-2">
+                  <h2 id="analytics-vendor-company" class="text-base lg:text-lg font-bold text-neutral-900 tracking-tight">Empresa</h2>
+                  <span id="analytics-vendor-badge" class="text-[10px] font-semibold px-2 py-0.5 rounded-full border">Status</span>
+                </div>
+                <div class="text-xs text-neutral-500 flex items-center gap-2">
+                  <span>Repr: <strong id="analytics-vendor-name" class="font-medium text-neutral-700">Nome</strong></span>
+                  <span>•</span>
+                  <span>Mínimo: <strong id="analytics-vendor-min" class="font-num text-neutral-800">R$ 0,00</strong></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alternador de Cenários A e B -->
+            <div class="flex items-center gap-2">
+              <span class="text-[11px] text-neutral-400 font-medium hidden sm:inline">Simulação:</span>
+              <div class="flex items-center gap-1 bg-neutral-100 p-1 rounded-xl border border-neutral-200 text-xs">
+                <button id="btn-scenario-a" onclick="setScenario('A')" class="px-3 py-1 rounded-lg font-medium transition-all cursor-pointer bg-white text-neutral-900 shadow-xs border border-neutral-200/80 font-bold">
+                  Cenário A (Falta Mínimo)
+                </button>
+                <button id="btn-scenario-b" onclick="setScenario('B')" class="px-3 py-1 rounded-lg font-medium transition-all cursor-pointer text-neutral-500 hover:text-neutral-900">
+                  Cenário B (Mínimo Atingido)
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Legenda das 4 Cores Suaves -->
+          <div class="mt-3 pt-2.5 border-t border-neutral-100 flex items-center justify-between flex-wrap gap-2 text-[11px] text-neutral-600">
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span><span class="font-medium text-emerald-950">Melhor Preço</span> <span class="text-neutral-400 text-[10px] hidden sm:inline">(Ganhando o item)</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-sky-500"></span><span class="font-medium text-sky-950">Empatado</span> <span class="text-neutral-400 text-[10px] hidden sm:inline">(Menor preço dividido)</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-rose-400"></span><span class="font-medium text-rose-950">Mais Caro</span> <span class="text-neutral-400 text-[10px] hidden sm:inline">(Concorrente ofereceu menor)</span></div>
+            <div class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-neutral-300"></span><span class="font-medium text-neutral-500">Em Branco</span> <span class="text-neutral-400 text-[10px] hidden sm:inline">(Não precificado)</span></div>
+          </div>
+        </header>
+
+        <!-- Main Responsive Grid Layout (Desktop: 8 cols items + 4 cols sidebar) -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+          <!-- Left Column: Products List & Analytics Table (Spans 8 cols) -->
+          <div class="lg:col-span-8 space-y-2.5">
+            <div class="flex items-center justify-between text-xs text-neutral-500 px-1">
+              <span class="font-bold uppercase tracking-wider text-[11px]">Itens da Cotação (12)</span>
+              <span id="analytics-progress-text" class="font-num">0 de 12 cotados</span>
+            </div>
+
+            <div id="products-list-container" class="space-y-2"></div>
+          </div>
+
+          <!-- Right Column: Desktop Executive Validation Sidebar (Spans 4 cols on desktop) -->
+          <div class="hidden lg:block lg:col-span-4 sticky top-6 space-y-4">
+            <div class="p-5 bg-white border border-neutral-200/90 rounded-2xl shadow-xs space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-neutral-100">
+                <span class="text-xs font-bold uppercase tracking-wider text-neutral-500">Auditoria do Pedido</span>
+                <span id="desktop-winning-count" class="text-xs font-num text-neutral-400">0 itens ganhos</span>
+              </div>
+
+              <div class="space-y-2 pt-2">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-neutral-500">Meta do Pedido Mínimo:</span>
+                  <span id="desktop-gauge-pct" class="font-bold font-num text-neutral-900">0%</span>
+                </div>
+                <div class="w-full bg-neutral-100 h-2.5 rounded-full overflow-hidden">
+                  <div id="desktop-gauge-bar" class="h-full rounded-full transition-all duration-300 bg-neutral-800" style="width: 0%"></div>
+                </div>
+              </div>
+
+              <div class="p-3.5 rounded-xl bg-neutral-50 border border-neutral-200/80 space-y-2 text-xs">
+                <div class="flex items-center justify-between">
+                  <span class="text-neutral-500">Ganhando na cotação:</span>
+                  <span id="desktop-winning-amount" class="font-bold font-num text-sm text-neutral-900">R$ 0,00</span>
+                </div>
+                <div class="flex items-center justify-between">
+                  <span class="text-neutral-500">Pedido Mínimo exigido:</span>
+                  <span id="desktop-min-amount" class="font-bold font-num text-neutral-700">R$ 0,00</span>
+                </div>
+              </div>
+
+              <div id="desktop-order-action-container"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PASSO 3: Rodapé Dinâmico e Validação de Pedido Mínimo (Mobile Only) -->
+        <footer class="lg:hidden fixed bottom-0 left-0 right-0 max-w-md mx-auto z-40 bg-white/95 backdrop-blur-md border-t border-neutral-200 px-4 py-3 shadow-lg">
+          <div class="flex items-center justify-between text-xs mb-2.5">
+            <div class="flex flex-col">
+              <span class="text-[11px] text-neutral-500">Ganhando na cotação:</span>
+              <span id="footer-winning-amount" class="text-sm font-bold font-num text-neutral-900">R$ 0,00</span>
+            </div>
+            <div class="h-6 w-px bg-neutral-200"></div>
+            <div class="flex flex-col text-right">
+              <span class="text-[11px] text-neutral-500">Pedido Mínimo exigido:</span>
+              <span id="footer-min-amount" class="text-sm font-bold font-num text-neutral-700">R$ 0,00</span>
+            </div>
+          </div>
+
+          <div id="order-action-container"></div>
+        </footer>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- BLOCO 5: MÓDULO FINANCEIRO DO SUPER ADMIN (COBRANÇAS)    -->
+      <!-- ======================================================== -->
+      <div id="view-admin" class="flex-1 flex flex-col hidden pb-16 bg-neutral-50/50 min-h-screen">
+        <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 px-4 lg:px-8 py-3.5 shadow-2xs">
+          <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button onclick="switchScreen('view-quotation')" class="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 hover:text-neutral-950 py-1.5 px-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200/80 transition-colors cursor-pointer">
+                <svg class="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                <span>Voltar ao App</span>
+              </button>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h1 class="text-base lg:text-lg font-bold tracking-tight text-neutral-900">Gestão de Cobranças & Mensalidades</h1>
+                  <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-neutral-900 text-white tracking-wider">Super Admin</span>
+                </div>
+                <p class="text-xs text-neutral-500 hidden sm:block">Controle financeiro do SaaS e acompanhamento de inadimplência</p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 pt-5 space-y-5 flex-1">
+          <!-- Toast feedback -->
+          <div id="admin-toast" class="hidden p-3 bg-neutral-900 text-white text-xs rounded-xl shadow-md flex items-center justify-between">
+            <span id="admin-toast-text">Link copiado!</span>
+          </div>
+
+          <!-- 4 Executive KPI Cards on Desktop -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div class="p-4 rounded-2xl bg-neutral-900 text-white shadow-xs relative overflow-hidden flex flex-col justify-between">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-[11px] font-bold uppercase tracking-wider text-rose-400">Inadimplência</span>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-neutral-800 text-neutral-300 font-num">Mês Atual</span>
+              </div>
+              <div class="mt-2.5">
+                <div id="admin-overdue-headline" class="text-2xl font-bold tracking-tight text-white font-num">3 lojistas em atraso</div>
+                <div class="text-xs text-rose-300 font-medium mt-0.5 font-num">R$ 1.170,00 pendentes</div>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-white border border-neutral-200 shadow-2xs flex flex-col justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-500">MRR Contratado</span>
+              <div class="mt-2.5">
+                <div class="text-2xl font-extrabold tracking-tight text-neutral-900 font-num">R$ 3.420,00</div>
+                <div class="text-xs text-neutral-500 mt-0.5">7 assinaturas ativas</div>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-white border border-neutral-200 shadow-2xs flex flex-col justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Receita Paga</span>
+              <div class="mt-2.5">
+                <div class="text-2xl font-extrabold tracking-tight text-emerald-700 font-num">R$ 1.430,00</div>
+                <div class="text-xs text-neutral-500 mt-0.5">3 faturas quitadas</div>
+              </div>
+            </div>
+
+            <div class="p-4 rounded-2xl bg-white border border-neutral-200 shadow-2xs flex flex-col justify-between">
+              <span class="text-[11px] font-bold uppercase tracking-wider text-neutral-500">Adimplência</span>
+              <div class="mt-2.5">
+                <div class="text-2xl font-extrabold tracking-tight text-neutral-900 font-num">57%</div>
+                <div class="text-xs text-neutral-500 mt-0.5">4 de 7 regulares</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filtros -->
+          <div class="flex items-center gap-1.5 overflow-x-auto text-xs bg-white p-3 rounded-2xl border border-neutral-200">
+            <button id="filter-all" onclick="setInvoiceFilter('ALL')" class="px-3 py-1.5 rounded-xl font-semibold bg-neutral-900 text-white shadow-xs cursor-pointer">Todos</button>
+            <button id="filter-atrasado" onclick="setInvoiceFilter('Atrasado')" class="px-3 py-1.5 rounded-xl bg-rose-50 text-rose-800 border border-rose-200/80 hover:bg-rose-100 cursor-pointer">Atrasados</button>
+            <button id="filter-pendente" onclick="setInvoiceFilter('Pendente')" class="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200/80 hover:bg-amber-100 cursor-pointer">Pendentes</button>
+            <button id="filter-pago" onclick="setInvoiceFilter('Pago')" class="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100 cursor-pointer">Pagos</button>
+          </div>
+
+          <!-- Desktop Table View -->
+          <div class="bg-white rounded-2xl border border-neutral-200 shadow-2xs overflow-hidden">
+            <div id="invoices-list-container" class="divide-y divide-neutral-100">
+              <!-- Injetado via JS -->
+            </div>
+          </div>
+        </main>
+      </div>
+
+      <!-- ======================================================== -->
+      <!-- TELA DE LANÇAR LISTA / NOVA COTAÇÃO                      -->
+      <!-- ======================================================== -->
+      <div id="view-launch" class="flex-1 flex flex-col hidden pb-16 bg-neutral-50/50 min-h-screen">
+        <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b border-neutral-200/80 px-4 lg:px-8 py-3.5 shadow-2xs">
+          <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button onclick="switchScreen('view-quotation')" class="flex items-center gap-1.5 text-xs font-semibold text-neutral-700 hover:text-neutral-950 py-1.5 px-2.5 rounded-xl bg-neutral-100 hover:bg-neutral-200/80 transition-colors cursor-pointer">
+                <svg class="w-4 h-4 text-neutral-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+                <span>Voltar</span>
+              </button>
+              <div>
+                <div class="flex items-center gap-2">
+                  <h1 class="text-base lg:text-lg font-bold tracking-tight text-neutral-900">Lançar Nova Lista de Cotação</h1>
+                  <span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 tracking-wider">Área do Lojista</span>
+                </div>
+                <p class="text-xs text-neutral-500 hidden sm:block">Cadastre os produtos, defina o prazo e dispare para os representantes</p>
+              </div>
+            </div>
+
+            <button onclick="handleLaunchSubmit()" class="py-2 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-2 cursor-pointer">
+              <svg class="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+              <span>Disparar Cotação</span>
+            </button>
+          </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto w-full px-4 lg:px-8 pt-5 space-y-6 flex-1">
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <!-- Left Column: Quotation Info & Products -->
+            <div class="lg:col-span-8 space-y-5">
+              <!-- Box 1: Info -->
+              <div class="bg-white rounded-2xl border-2 border-neutral-200/90 p-5 shadow-2xs space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-800 pb-2 border-b border-neutral-100">1. Dados da Cotação</h2>
+                <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                  <div class="sm:col-span-7 space-y-1">
+                    <label class="text-[11px] font-bold text-neutral-700 uppercase">Título da Lista *</label>
+                    <input type="text" id="launch-title" value="" placeholder="Digite o título da lista de cotação" class="w-full px-3.5 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-semibold text-neutral-900 focus:outline-hidden transition-all shadow-xs" />
+                  </div>
+                  <div class="sm:col-span-5 space-y-1">
+                    <label class="text-[11px] font-bold text-neutral-700 uppercase">Encerramento (Data e Hora) *</label>
+                    <input type="datetime-local" id="launch-deadline-dt" class="w-full px-3 py-2 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-semibold text-neutral-900 focus:outline-hidden transition-all cursor-pointer shadow-xs" />
+                  </div>
+                </div>
+              </div>
+
+              <!-- Box 2: Produtos -->
+              <div class="bg-white rounded-2xl border-2 border-neutral-200/90 p-5 shadow-2xs space-y-4">
+                <div class="flex items-center justify-between pb-3 border-b border-neutral-100">
+                  <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-800">2. Itens da Lista (<span id="launch-items-count">0</span> produtos)</h2>
+                  <span class="text-xs text-neutral-400">Insira os itens abaixo</span>
+                </div>
+
+                <!-- Input rápido -->
+                <div class="p-3.5 bg-neutral-50 rounded-xl border border-neutral-200 space-y-2">
+                  <div class="text-[11px] font-bold uppercase tracking-wider text-neutral-700">Adicionar Item</div>
+                  <div class="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <input type="text" id="new-prod-name" placeholder="Nome do produto (ex: Veda Rosca, Parafuso, Ração...)" class="sm:col-span-6 px-3 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-semibold text-neutral-900 focus:outline-hidden" />
+                    <input type="number" id="new-prod-qty" placeholder="Qtd" value="1" min="1" class="sm:col-span-2 px-3 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-num font-bold text-neutral-900 focus:outline-hidden" />
+                    <select id="new-prod-unit" class="sm:col-span-2 px-2 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-bold text-neutral-800 cursor-pointer uppercase">
+                      <option value="un">UN (Unidade)</option>
+                      <option value="cx">CX (Caixa)</option>
+                      <option value="sc">SC (Saco)</option>
+                      <option value="kg">KG (Quilo)</option>
+                      <option value="bdj">BDJ (Bandeja)</option>
+                      <option value="pc">PC (Peça)</option>
+                      <option value="mt">MT (Metro)</option>
+                      <option value="lt">LT (Litro)</option>
+                    </select>
+                    <button type="button" onclick="addLaunchProductFromInput()" class="sm:col-span-2 px-3 py-2.5 bg-neutral-900 text-white rounded-xl text-xs font-bold hover:bg-neutral-800 cursor-pointer transition-colors shadow-xs">
+                      + Inserir
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Lista de produtos adicionados -->
+                <div id="launch-products-list" class="space-y-2 max-h-[460px] overflow-y-auto pr-1"></div>
+              </div>
+            </div>
+
+            <!-- Right Column: Fornecedores & Disparo -->
+            <div class="lg:col-span-4 space-y-5">
+              <div class="bg-white rounded-2xl border border-neutral-200/90 p-5 shadow-2xs space-y-4">
+                <h2 class="text-xs font-bold uppercase tracking-wider text-neutral-800 pb-2 border-b border-neutral-100">Fornecedores a Convocar</h2>
+                <div class="space-y-2" id="launch-vendors-selector"></div>
+                <div class="p-3 bg-emerald-50 rounded-xl text-xs text-emerald-900 border border-emerald-200">
+                  Os representantes recebem o link no WhatsApp para digitar os valores direto pelo celular sem precisar de login.
+                </div>
+              </div>
+
+              <div class="bg-neutral-900 text-white rounded-2xl p-5 shadow-xs space-y-4">
+                <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Resumo da Cotação</div>
+                <div class="text-xl font-bold tracking-tight">Pronto para lançar</div>
+                <button type="button" onclick="handleLaunchSubmit()" class="w-full py-3.5 px-4 rounded-xl bg-white hover:bg-neutral-100 text-neutral-950 text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+                  <span>Disparar Lista & Iniciar Cotação</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Modal de Pedido Gerado -->
+  <div id="modal-success" class="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-6 text-center space-y-4 shadow-xl border border-neutral-100">
+      <div class="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+        <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+      </div>
+      <div>
+        <h3 class="text-base font-bold text-neutral-900">Pedido Gerado com Sucesso!</h3>
+        <p id="modal-success-desc" class="text-xs text-neutral-500 mt-1 leading-relaxed">
+          O pedido de compra foi enviado ao representante do fornecedor.
+        </p>
+      </div>
+      <button onclick="document.getElementById('modal-success').classList.add('hidden')" class="w-full py-2.5 px-4 rounded-xl bg-neutral-900 text-white text-xs font-semibold cursor-pointer">
+        Fechar
+      </button>
+    </div>
+  </div>
+
+  <!-- SCRIPT INTEGRADO COM DADOS E REGRAS -->
+  <script>
+    // --- ESTADO GLOBAL ---
+    let currentScreen = 'view-quotation';
+    let currentScenario = 'A';
+    let selectedVendorId = 'v1';
+    let currentSelectedVendorLogin = 'v1';
+    let activeInvoiceFilter = 'ALL';
+    let deviceMode = 'desktop';
+
+    const quotation = {
+      id: 'COT-8942',
+      title: 'Feira Semanal - Hortifrúti',
+      status: 'Em Cotação',
+      secondsRemaining: 13282
+    };
+
+    const products = [
+      { id: 'p1', name: 'Tomate Italiano', category: 'Legumes', unit: 'kg', qty: 250 },
+      { id: 'p2', name: 'Batata Inglesa Especial', category: 'Tubérculos', unit: 'kg', qty: 300 },
+      { id: 'p3', name: 'Cebola Amarela', category: 'Legumes', unit: 'kg', qty: 150 },
+      { id: 'p4', name: 'Alface Americana', category: 'Verduras', unit: 'cx', qty: 40 },
+      { id: 'p5', name: 'Cenoura Selecionada', category: 'Legumes', unit: 'kg', qty: 120 },
+      { id: 'p6', name: 'Banana Prata Climatizada', category: 'Frutas', unit: 'cx', qty: 35 },
+      { id: 'p7', name: 'Maçã Gala Nacional', category: 'Frutas', unit: 'cx', qty: 25 },
+      { id: 'p8', name: 'Pimentão Verde Especial', category: 'Legumes', unit: 'kg', qty: 80 },
+      { id: 'p9', name: 'Manga Tommy', category: 'Frutas', unit: 'cx', qty: 20 },
+      { id: 'p10', name: 'Melancia Redonda', category: 'Frutas', unit: 'kg', qty: 400 },
+      { id: 'p11', name: 'Laranja Pera Rio', category: 'Frutas', unit: 'cx', qty: 45 },
+      { id: 'p12', name: 'Alho Roxo Nacional', category: 'Temperos', unit: 'kg', qty: 30 }
+    ];
+
+    const vendors = [
+      { id: 'v1', name: 'Carlos Eduardo', company: 'Distribuidora Bom Preço', hasViewed: true, minOrder: 500.00, defaultScenario: 'A' },
+      { id: 'v2', name: 'Marcos Vinicius', company: 'Hortifrúti Ceasa Sul', hasViewed: true, minOrder: 400.00, defaultScenario: 'B' },
+      { id: 'v3', name: 'Renata Silveira', company: 'AgroComercial Da Terra', hasViewed: false, minOrder: 600.00, defaultScenario: 'A' },
+      { id: 'v4', name: 'João Paulo', company: 'Verduras Express Ltda', hasViewed: true, minOrder: 350.00, defaultScenario: 'A' }
+    ];
+
+    let prices = {
+      v1: { p1: 6.20, p2: 4.80, p3: 4.10, p4: 38.00, p5: 3.90, p6: 55.00, p7: null, p8: 4.20, p9: 45.00, p10: 1.80, p11: 42.00, p12: null },
+      v2: { p1: 5.90, p2: 4.50, p3: 4.10, p4: 39.50, p5: 4.20, p6: null, p7: 72.00, p8: 3.80, p9: null, p10: 1.95, p11: 40.00, p12: 24.00 },
+      v3: { p1: 6.40, p2: 4.90, p3: null, p4: 36.00, p5: 3.80, p6: 52.00, p7: 70.00, p8: 4.50, p9: 42.00, p10: null, p11: 43.00, p12: 25.50 },
+      v4: { p1: 6.10, p2: null, p3: 4.30, p4: 36.00, p5: 4.10, p6: 54.00, p7: 75.00, p8: 4.00, p9: null, p10: 1.80, p11: null, p12: null }
+    };
+
+    let invoices = [
+      { id: 'inv-1', shopkeeperName: 'Supermercado Central', slug: 'hortifruti-central', contactPerson: 'Roberto Carlos', whatsapp: '5511998877661', amount: 390.00, dueDateFormatted: '15/10/2026', status: 'Atrasado', daysOverdue: 12, isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136e9575b6b-central-390' },
+      { id: 'inv-2', shopkeeperName: 'Hortifrúti da Vila', slug: 'vila-horti', contactPerson: 'Fernanda Lima', whatsapp: '5511998877662', amount: 490.00, dueDateFormatted: '18/10/2026', status: 'Atrasado', daysOverdue: 9, isBlocked: true, pixKey: '00020126580014br.gov.bcb.pix0136e9575b6b-vila-490' },
+      { id: 'inv-3', shopkeeperName: 'Empório dos Orgânicos', slug: 'emporio-organico', contactPerson: 'Juliano Prado', whatsapp: '5511998877663', amount: 290.00, dueDateFormatted: '22/10/2026', status: 'Atrasado', daysOverdue: 5, isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136e9575b6b-emporio-290' },
+      { id: 'inv-4', shopkeeperName: 'Mercado Bom Preço', slug: 'bom-preco-sp', contactPerson: 'Carla Dias', whatsapp: '5511998877664', amount: 490.00, dueDateFormatted: '28/10/2026', status: 'Pendente', daysOverdue: 0, isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136e9575b6b-bompreco-490' },
+      { id: 'inv-5', shopkeeperName: 'Quitanda Primavera', slug: 'quitanda-primavera', contactPerson: 'Marcio Souza', whatsapp: '5511998877665', amount: 330.00, dueDateFormatted: '30/10/2026', status: 'Pendente', daysOverdue: 0, isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136e9575b6b-primavera-330' },
+      { id: 'inv-6', shopkeeperName: 'Sacolão da Família', slug: 'sacolao-familia', contactPerson: 'Camila Torres', whatsapp: '5511998877666', amount: 650.00, dueDateFormatted: '05/10/2026', status: 'Pago', daysOverdue: 0, isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136e9575b6b-familia-650' },
+      { id: 'inv-7', shopkeeperName: 'Rede FruttiMax', slug: 'fruttimax', contactPerson: 'Leandro Melo', whatsapp: '5511998877667', amount: 780.00, dueDateFormatted: '10/10/2026', status: 'Pago', daysOverdue: 0, isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136e9575b6b-fruttimax-780' }
+    ];
+
+    function formatMoney(val) {
+      return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
+    }
+
+    // Alternar entre modo desktop e mobile mockup
+    function setDeviceMode(mode) {
+      deviceMode = mode;
+      const appWrapper = document.getElementById('app-wrapper');
+      const app = document.getElementById('app');
+      const btnDesk = document.getElementById('btn-mode-desktop');
+      const btnMob = document.getElementById('btn-mode-mobile');
+
+      if (mode === 'mobile') {
+        appWrapper.className = "w-full transition-all duration-300 flex-1 flex flex-col items-center justify-start bg-neutral-200/80 py-6";
+        app.className = "w-full max-w-md bg-white min-h-[840px] flex flex-col shadow-2xl rounded-3xl border-4 border-neutral-800 overflow-hidden relative";
+        btnMob.className = "px-2.5 py-1 rounded-md font-bold bg-neutral-800 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer";
+        btnDesk.className = "px-2.5 py-1 rounded-md font-medium text-neutral-400 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer";
+      } else {
+        appWrapper.className = "w-full transition-all duration-300 flex-1 flex flex-col justify-start bg-neutral-50/60";
+        app.className = "w-full max-w-7xl mx-auto flex-1 flex flex-col transition-all duration-300";
+        btnDesk.className = "px-2.5 py-1 rounded-md font-bold bg-neutral-800 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer";
+        btnMob.className = "px-2.5 py-1 rounded-md font-medium text-neutral-400 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer";
+      }
+    }
+
+    function switchScreen(screenId) {
+      ['view-login', 'view-quotation', 'view-analytics', 'view-admin', 'view-launch'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
+      });
+      const activeEl = document.getElementById(screenId);
+      if (activeEl) activeEl.classList.remove('hidden');
+
+      ['login', 'launch', 'quotation', 'analytics', 'admin'].forEach(nav => {
+        const btn = document.getElementById(`nav-btn-${nav}`);
+        if (btn) {
+          if (`view-${nav}` === screenId) {
+            btn.className = "px-2.5 py-1 rounded-lg bg-white text-neutral-900 font-bold shadow-xs transition-colors cursor-pointer";
+          } else {
+            btn.className = "px-2.5 py-1 rounded-lg text-neutral-400 hover:text-white transition-colors cursor-pointer";
+          }
+        }
+      });
+
+      if (screenId === 'view-quotation') renderQuotationView();
+      if (screenId === 'view-analytics') renderAnalyticsView();
+      if (screenId === 'view-admin') renderAdminView();
+      if (screenId === 'view-launch') renderLaunchView();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // --- TELA: LANÇAR NOVA COTAÇÃO ---
+    let selectedLaunchVendors = ['v1', 'v2', 'v3', 'v4'];
+
+    function renderLaunchView() {
+      document.getElementById('launch-items-count').textContent = products.length;
+      const listEl = document.getElementById('launch-products-list');
+      listEl.innerHTML = '';
+
+      products.forEach((p, index) => {
+        const row = document.createElement('div');
+        row.className = "p-3 rounded-xl border border-neutral-200 bg-white flex items-center justify-between gap-3 text-xs";
+        row.innerHTML = `
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="font-num text-neutral-400 text-[11px] w-5 text-right shrink-0">#${index + 1}</span>
+            <div class="font-bold text-neutral-900 truncate">${p.name}</div>
+          </div>
+          <div class="flex items-center gap-2 shrink-0">
+            <span class="text-neutral-500 font-num font-semibold">${p.qty} ${p.unit}</span>
+            <button onclick="removeLaunchProduct('${p.id}')" class="text-neutral-400 hover:text-rose-600 p-1">✕</button>
+          </div>
+        `;
+        listEl.appendChild(row);
+      });
+
+      const vendorsEl = document.getElementById('launch-vendors-selector');
+      vendorsEl.innerHTML = '';
+      vendors.forEach(v => {
+        const isSel = selectedLaunchVendors.includes(v.id);
+        const card = document.createElement('div');
+        card.className = `p-2.5 rounded-xl border cursor-pointer flex items-center justify-between text-xs ${isSel ? 'border-neutral-900 bg-neutral-50' : 'border-neutral-200 opacity-60'}`;
+        card.onclick = () => {
+          if (selectedLaunchVendors.includes(v.id)) {
+            selectedLaunchVendors = selectedLaunchVendors.filter(id => id !== v.id);
+          } else {
+            selectedLaunchVendors.push(v.id);
+          }
+          renderLaunchView();
+        };
+        card.innerHTML = `
+          <div>
+            <div class="font-bold text-neutral-900">${v.company}</div>
+            <div class="text-[11px] text-neutral-500">Mínimo: ${formatMoney(v.minOrder)}</div>
+          </div>
+          <input type="checkbox" ${isSel ? 'checked' : ''} class="w-4 h-4 rounded text-neutral-900 pointer-events-none" />
+        `;
+        vendorsEl.appendChild(card);
+      });
+    }
+
+    function addLaunchProductFromInput() {
+      const name = document.getElementById('new-prod-name').value.trim();
+      const qty = parseFloat(document.getElementById('new-prod-qty').value);
+      const unit = document.getElementById('new-prod-unit').value;
+      if (!name) return;
+
+      products.push({
+        id: 'p' + (products.length + 1),
+        name: name,
+        category: 'Hortifrúti',
+        unit: unit,
+        qty: qty > 0 ? qty : 10
+      });
+
+      document.getElementById('new-prod-name').value = '';
+      renderLaunchView();
+    }
+
+    function removeLaunchProduct(id) {
+      const idx = products.findIndex(p => p.id === id);
+      if (idx !== -1) {
+        products.splice(idx, 1);
+        renderLaunchView();
+      }
+    }
+
+    function handleLaunchSubmit() {
+      const title = document.getElementById('launch-title').value.trim() || 'Nova Cotação de Compras';
+      quotation.title = title;
+      quotation.id = 'COT-' + Math.floor(1000 + Math.random() * 9000);
+
+      const dtInput = document.getElementById('launch-deadline-dt');
+      if (dtInput && dtInput.value) {
+        const diffMs = new Date(dtInput.value).getTime() - Date.now();
+        quotation.secondsRemaining = Math.max(3600, Math.floor(diffMs / 1000));
+      } else {
+        quotation.secondsRemaining = 172800; // 48h
+      }
+
+      // Gerar lances concorrentes para os fornecedores selecionados
+      vendors.forEach(v => {
+        if (!prices[v.id]) prices[v.id] = {};
+        const isSel = selectedLaunchVendors.includes(v.id);
+        products.forEach(p => {
+          if (!isSel) {
+            prices[v.id][p.id] = null;
+          } else {
+            const base = p.unit === 'cx' ? 45 : p.unit === 'sc' ? 35 : p.unit === 'un' || p.unit === 'pc' ? 18.5 : 8.5;
+            const factor = 0.85 + Math.random() * 0.3;
+            prices[v.id][p.id] = Math.round(base * factor * 10) / 10;
+          }
+        });
+      });
+
+      alert(`Cotação "${title}" lançada com sucesso! Os ${selectedLaunchVendors.length} fornecedores selecionados receberam a lista para digitação.`);
+      switchScreen('view-quotation');
+    }
+
+    // --- BLOCO 4: LOGIN ---
+    function setLoginTab(tab) {
+      const btnLojista = document.getElementById('tab-btn-lojista');
+      const btnFornecedor = document.getElementById('tab-btn-fornecedor');
+      const formLojista = document.getElementById('form-lojista');
+      const formFornecedor = document.getElementById('form-fornecedor');
+
+      if (tab === 'lojista') {
+        btnLojista.className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-neutral-900 shadow-xs cursor-pointer";
+        btnFornecedor.className = "flex-1 py-2 text-xs font-semibold rounded-lg text-neutral-500 hover:text-neutral-900 cursor-pointer";
+        formLojista.classList.remove('hidden');
+        formFornecedor.classList.add('hidden');
+      } else {
+        btnFornecedor.className = "flex-1 py-2 text-xs font-semibold rounded-lg bg-white text-neutral-900 shadow-xs cursor-pointer";
+        btnLojista.className = "flex-1 py-2 text-xs font-semibold rounded-lg text-neutral-500 hover:text-neutral-900 cursor-pointer";
+        formFornecedor.classList.remove('hidden');
+        formLojista.classList.add('hidden');
+      }
+    }
+
+    function togglePasswordVisibility(inputId) {
+      const input = document.getElementById(inputId);
+      input.type = input.type === 'password' ? 'text' : 'password';
+    }
+
+    function selectVendorLogin(vendorId) {
+      currentSelectedVendorLogin = vendorId;
+      const b1 = document.getElementById('btn-quick-v1');
+      const b2 = document.getElementById('btn-quick-v2');
+      if (vendorId === 'v1') {
+        b1.className = "p-2.5 rounded-xl border border-neutral-900 bg-neutral-900 text-white text-left text-xs font-semibold cursor-pointer";
+        b2.className = "p-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-left text-xs hover:bg-white cursor-pointer";
+      } else {
+        b2.className = "p-2.5 rounded-xl border border-neutral-900 bg-neutral-900 text-white text-left text-xs font-semibold cursor-pointer";
+        b1.className = "p-2.5 rounded-xl border border-neutral-200 bg-neutral-50 text-neutral-700 text-left text-xs hover:bg-white cursor-pointer";
+      }
+    }
+
+    function handleLoginLojistaSubmit() {
+      const slug = document.getElementById('login-slug').value.trim();
+      const invoice = invoices.find(inv => inv.slug === slug);
+      if (invoice && invoice.isBlocked) {
+        alert(`Atenção: O acesso da loja "${invoice.shopkeeperName}" está bloqueado por mensalidade pendente. Desbloqueie no Super Admin.`);
+        switchScreen('view-admin');
+        return;
+      }
+      switchScreen('view-quotation');
+    }
+
+    // --- BLOCO 1, 2, 3: COTAÇÃO E VISÃO ANALÍTICA ---
+    function getMarketBest(productId) {
+      let min = null;
+      let winners = [];
+      Object.entries(prices).forEach(([vId, pMap]) => {
+        const p = pMap[productId];
+        if (p !== null && p > 0) {
+          if (min === null || p < min) {
+            min = p;
+            winners = [vId];
+          } else if (p === min) {
+            winners.push(vId);
+          }
+        }
+      });
+      return { min, winners };
+    }
+
+    function calculateTotalOptimized() {
+      let total = 0;
+      products.forEach(p => {
+        const { min } = getMarketBest(p.id);
+        if (min !== null) total += p.qty * min;
+      });
+      return total;
+    }
+
+    function renderQuotationView() {
+      const totalOpt = calculateTotalOptimized();
+      document.getElementById('total-optimized-display').textContent = formatMoney(totalOpt);
+
+      const container = document.getElementById('vendors-list-container');
+      container.innerHTML = '';
+
+      vendors.forEach(v => {
+        const vPrices = prices[v.id] || {};
+        let quoted = 0;
+        let winningAmt = 0;
+
+        products.forEach(p => {
+          const vp = vPrices[p.id];
+          if (vp !== null && vp > 0) {
+            quoted++;
+            const { min } = getMarketBest(p.id);
+            if (vp === min) winningAmt += p.qty * vp;
+          }
+        });
+
+        const card = document.createElement('div');
+        card.className = "p-4 rounded-2xl border border-neutral-200/90 bg-white hover:bg-neutral-50/70 hover:border-neutral-300 transition-all cursor-pointer group shadow-2xs flex flex-col justify-between gap-3";
+        card.onclick = () => {
+          openVendorAnalytics(v.id);
+          switchScreen('view-analytics');
+        };
+
+        card.innerHTML = `
+          <div class="space-y-2 w-full">
+            <div class="flex items-center justify-between gap-2">
+              <div class="truncate">
+                <span class="font-bold text-sm text-neutral-900 tracking-tight block truncate">${v.company}</span>
+                <span class="text-xs text-neutral-500 block truncate">Repr.: <strong class="font-medium text-neutral-700">${v.name}</strong></span>
+              </div>
+              ${v.hasViewed 
+                ? '<span class="inline-flex items-center gap-1 text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">Já Visualizou</span>' 
+                : '<span class="inline-flex items-center gap-1 text-[10px] font-medium px-2.5 py-0.5 rounded-full bg-neutral-100 text-neutral-500 border border-neutral-200 shrink-0">Não Visualizou</span>'}
+            </div>
+
+            <div class="space-y-1 pt-1">
+              <div class="flex items-center justify-between text-xs text-neutral-500">
+                <span>Preenchimento:</span>
+                <span class="font-medium text-neutral-700 font-num">${quoted} de ${products.length} itens</span>
+              </div>
+              <div class="w-full bg-neutral-100 h-1.5 rounded-full overflow-hidden">
+                <div class="h-full rounded-full bg-emerald-500" style="width: ${Math.round((quoted / products.length) * 100)}%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="pt-2 border-t border-neutral-100 flex items-center justify-between text-xs w-full">
+            <div>
+              <div class="text-[11px] text-neutral-500">Ganhando na cotação:</div>
+              <div class="font-num font-bold text-sm text-emerald-700">${formatMoney(winningAmt)}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-[11px] text-neutral-400">Mínimo:</div>
+              <div class="font-num font-semibold text-neutral-700">${formatMoney(v.minOrder)}</div>
+            </div>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      // Desktop Basket Preview
+      const basket = document.getElementById('desktop-basket-container');
+      if (basket) {
+        basket.innerHTML = '';
+        products.forEach(p => {
+          const { min } = getMarketBest(p.id);
+          const el = document.createElement('div');
+          el.className = "p-2.5 rounded-xl border border-neutral-100 bg-neutral-50/50 flex items-center justify-between";
+          el.innerHTML = `
+            <div>
+              <div class="font-semibold text-neutral-900">${p.name}</div>
+              <div class="text-[11px] text-neutral-500">${p.qty} ${p.unit}</div>
+            </div>
+            <div class="text-right font-num font-bold text-emerald-700">${min ? formatMoney(min) : '—'}</div>
+          `;
+          basket.appendChild(el);
+        });
+      }
+    }
+
+    function openVendorAnalytics(vendorId) {
+      selectedVendorId = vendorId;
+      const v = vendors.find(x => x.id === vendorId);
+      currentScenario = v.defaultScenario || 'A';
+    }
+
+    function setScenario(scen) {
+      currentScenario = scen;
+      renderAnalyticsView();
+    }
+
+    function renderAnalyticsView() {
+      const v = vendors.find(x => x.id === selectedVendorId) || vendors[0];
+      document.getElementById('analytics-vendor-company').textContent = v.company;
+      document.getElementById('analytics-vendor-name').textContent = v.name;
+      document.getElementById('analytics-vendor-min').textContent = formatMoney(v.minOrder);
+
+      const badge = document.getElementById('analytics-vendor-badge');
+      if (v.hasViewed) {
+        badge.className = "text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200";
+        badge.textContent = "Já Visualizou";
+      } else {
+        badge.className = "text-[10px] font-medium px-2 py-0.5 rounded-full bg-neutral-100 text-neutral-500 border border-neutral-200";
+        badge.textContent = "Não Visualizou";
+      }
+
+      const btnA = document.getElementById('btn-scenario-a');
+      const btnB = document.getElementById('btn-scenario-b');
+      if (currentScenario === 'A') {
+        btnA.className = "px-3 py-1 rounded-lg font-bold bg-white text-neutral-900 shadow-xs border border-neutral-200/80 cursor-pointer";
+        btnB.className = "px-3 py-1 rounded-lg font-medium text-neutral-500 hover:text-neutral-900 cursor-pointer";
+      } else {
+        btnB.className = "px-3 py-1 rounded-lg font-bold bg-white text-neutral-900 shadow-xs border border-neutral-200/80 cursor-pointer";
+        btnA.className = "px-3 py-1 rounded-lg font-medium text-neutral-500 hover:text-neutral-900 cursor-pointer";
+      }
+
+      let activePrices = { ...prices[v.id] };
+      if (currentScenario === 'B' && v.id === 'v1') {
+        activePrices.p2 = 4.20;
+        activePrices.p8 = 3.30;
+      } else if (currentScenario === 'A' && v.id === 'v2') {
+        activePrices.p2 = 5.20;
+        activePrices.p3 = 5.30;
+      }
+
+      const container = document.getElementById('products-list-container');
+      container.innerHTML = '';
+      let winningTotal = 0;
+      let winningCount = 0;
+      let quotedCount = 0;
+
+      products.forEach(product => {
+        const vPrice = activePrices[product.id];
+        const { min, winners } = getMarketBest(product.id);
+        const effectiveMin = (currentScenario === 'B' && v.id === 'v1' && (product.id === 'p2' || product.id === 'p8')) ? vPrice : min;
+
+        let cardBgClass = '';
+        let badgeHtml = '';
+        let priceDisplay = '';
+        let subtotalText = '';
+
+        if (vPrice === null || vPrice === undefined || vPrice <= 0) {
+          // REGRA 1: Em Branco (Cinza neutro)
+          cardBgClass = 'bg-neutral-50/70 border-neutral-200/80 text-neutral-400';
+          priceDisplay = `<span class="font-num text-neutral-400 font-medium">—</span>`;
+          subtotalText = `<span class="text-neutral-400">Não precificado</span>`;
+          badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-neutral-200/60 text-neutral-600">Em Branco</span>`;
+        } else {
+          quotedCount++;
+          const subtotal = vPrice * product.qty;
+          if (vPrice === effectiveMin) {
+            if (winners.length > 1 && !(currentScenario === 'B' && v.id === 'v1')) {
+              // REGRA 4: Preço Empatado (Azul Suave)
+              cardBgClass = 'bg-sky-50/80 border-sky-200 text-sky-950';
+              priceDisplay = `<span class="font-num font-bold text-sky-950">${formatMoney(vPrice)}</span>`;
+              subtotalText = `<span class="text-sky-800 font-num">Subtotal: ${formatMoney(subtotal)}</span>`;
+              badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-sky-100 text-sky-800 border border-sky-200">Preço Empatado</span>`;
+              winningTotal += subtotal;
+              winningCount++;
+            } else {
+              // REGRA 3: Melhor Preço (Verde Suave)
+              cardBgClass = 'bg-emerald-50/80 border-emerald-200 text-emerald-950';
+              priceDisplay = `<span class="font-num font-bold text-emerald-950">${formatMoney(vPrice)}</span>`;
+              subtotalText = `<span class="text-emerald-800 font-num">Subtotal: ${formatMoney(subtotal)}</span>`;
+              badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200">Melhor Preço</span>`;
+              winningTotal += subtotal;
+              winningCount++;
+            }
+          } else {
+            // REGRA 2: Preço mais caro (Vermelho Suave)
+            const diffPct = Math.round(((vPrice - effectiveMin) / effectiveMin) * 100);
+            cardBgClass = 'bg-rose-50/80 border-rose-200 text-rose-950';
+            priceDisplay = `<span class="font-num font-bold text-rose-900">${formatMoney(vPrice)}</span>`;
+            subtotalText = `<span class="text-rose-700 font-num">Menor oferta concorrente: ${formatMoney(effectiveMin)}</span>`;
+            badgeHtml = `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-rose-100 text-rose-800 border border-rose-200">+${diffPct}% mais caro</span>`;
+          }
+        }
+
+        const itemEl = document.createElement('div');
+        itemEl.className = `p-3.5 sm:p-4 rounded-xl border transition-all ${cardBgClass} flex items-center justify-between gap-3 shadow-2xs`;
+        itemEl.innerHTML = `
+          <div class="space-y-1 min-w-0 flex-1">
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="font-bold text-xs sm:text-sm text-neutral-900 truncate">${product.name}</span>
+              ${badgeHtml}
+            </div>
+            <div class="text-xs text-neutral-500">
+              Qtd: <strong class="text-neutral-700 font-num">${product.qty} ${product.unit}</strong> • ${subtotalText}
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-sm font-num font-extrabold">${priceDisplay}</div>
+            <div class="text-[10px] text-neutral-400">por ${product.unit}</div>
+          </div>
+        `;
+        container.appendChild(itemEl);
+      });
+
+      document.getElementById('analytics-progress-text').textContent = `${quotedCount} de ${products.length} cotados por este representante`;
+
+      // Atualiza sidebar desktop & footer mobile
+      const minOrderMet = winningTotal >= v.minOrder;
+      const deficit = Math.max(0, v.minOrder - winningTotal);
+      const minPercent = Math.min(100, Math.round((winningTotal / v.minOrder) * 100));
+
+      // Mobile footer
+      document.getElementById('footer-winning-amount').textContent = formatMoney(winningTotal);
+      document.getElementById('footer-min-amount').textContent = formatMoney(v.minOrder);
+
+      // Desktop Sidebar
+      const deskAmt = document.getElementById('desktop-winning-amount');
+      const deskMin = document.getElementById('desktop-min-amount');
+      const deskCnt = document.getElementById('desktop-winning-count');
+      const deskBar = document.getElementById('desktop-gauge-bar');
+      const deskPct = document.getElementById('desktop-gauge-pct');
+      if (deskAmt) deskAmt.textContent = formatMoney(winningTotal);
+      if (deskMin) deskMin.textContent = formatMoney(v.minOrder);
+      if (deskCnt) deskCnt.textContent = `${winningCount} itens ganhos`;
+      if (deskBar) {
+        deskBar.style.width = `${minPercent}%`;
+        deskBar.className = minOrderMet ? "h-full rounded-full transition-all duration-300 bg-emerald-500" : "h-full rounded-full transition-all duration-300 bg-neutral-800";
+      }
+      if (deskPct) deskPct.textContent = `${minPercent}%`;
+
+      const actionMobile = document.getElementById('order-action-container');
+      const actionDesktop = document.getElementById('desktop-order-action-container');
+
+      const actionHtml = !minOrderMet ? `
+        <div class="space-y-1.5 pt-1">
+          <button disabled class="w-full py-3 px-4 rounded-xl bg-neutral-100 text-neutral-400 text-xs font-semibold cursor-not-allowed border border-neutral-200 flex items-center justify-center gap-2">
+            <span>Gerar Pedido</span>
+          </button>
+          <div class="text-center text-[11px] text-neutral-500 font-medium">
+            Faltam <strong class="text-neutral-800 font-num">${formatMoney(deficit)}</strong> para o pedido mínimo
+          </div>
+        </div>
+      ` : `
+        <button onclick="handleGenerateOrder(${winningTotal})" class="w-full py-3.5 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 active:scale-[0.99] text-white text-xs font-semibold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer">
+          <svg class="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+          <span>Gerar Pedido (${formatMoney(winningTotal)})</span>
+        </button>
+      `;
+
+      if (actionMobile) actionMobile.innerHTML = actionHtml;
+      if (actionDesktop) actionDesktop.innerHTML = actionHtml;
+    }
+
+    function handleGenerateOrder(amount) {
+      const v = vendors.find(x => x.id === selectedVendorId) || vendors[0];
+      document.getElementById('modal-success-desc').innerHTML = `
+        Pedido no valor de <strong>${formatMoney(amount)}</strong> para <strong>${v.company}</strong> gerado com sucesso respeitando o pedido mínimo de ${formatMoney(v.minOrder)}.
+      `;
+      document.getElementById('modal-success').classList.remove('hidden');
+    }
+
+    // --- BLOCO 5: SUPER ADMIN FINANCEIRO ---
+    function setInvoiceFilter(filter) {
+      activeInvoiceFilter = filter;
+      renderAdminView();
+    }
+
+    function renderAdminView() {
+      const overdue = invoices.filter(i => i.status === 'Atrasado');
+      document.getElementById('admin-overdue-headline').textContent = `${overdue.length} lojistas em atraso`;
+
+      ['all', 'atrasado', 'pendente', 'pago'].forEach(f => {
+        const btn = document.getElementById(`filter-${f}`);
+        const key = f === 'all' ? 'ALL' : (f.charAt(0).toUpperCase() + f.slice(1));
+        if (key === activeInvoiceFilter) {
+          btn.className = "px-3 py-1.5 rounded-xl font-semibold bg-neutral-900 text-white shadow-xs cursor-pointer";
+        } else {
+          btn.className = "px-3 py-1.5 rounded-xl bg-neutral-100 text-neutral-700 hover:bg-neutral-200 cursor-pointer";
+        }
+      });
+
+      const container = document.getElementById('invoices-list-container');
+      container.innerHTML = '';
+
+      const filtered = invoices.filter(i => activeInvoiceFilter === 'ALL' || i.status === activeInvoiceFilter);
+
+      filtered.forEach(inv => {
+        const isOverdue = inv.status === 'Atrasado';
+        const isPaid = inv.status === 'Pago';
+        const isPending = inv.status === 'Pendente';
+
+        let badgeHtml = '';
+        if (isPaid) badgeHtml = '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 text-[11px] font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>Pago</span>';
+        if (isPending) badgeHtml = '<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-[11px] font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>Pendente</span>';
+        if (isOverdue) badgeHtml = `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-200 text-[11px] font-semibold"><span class="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Atrasado (${inv.daysOverdue}d)</span>`;
+
+        const row = document.createElement('div');
+        row.className = `p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 ${isOverdue ? 'bg-rose-50/20' : 'bg-white'}`;
+
+        row.innerHTML = `
+          <div class="space-y-1">
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-sm text-neutral-900">${inv.shopkeeperName}</span>
+              <span class="text-xs text-neutral-400 font-num">/${inv.slug}</span>
+              ${inv.isBlocked ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-neutral-900 text-white">Bloqueado</span>' : '<span class="text-[11px] text-emerald-700 font-medium">Acesso Ativo</span>'}
+            </div>
+            <div class="text-xs text-neutral-500 flex items-center gap-2">
+              <span>Contato: ${inv.contactPerson}</span>
+              <span>•</span>
+              <span>Vencimento: <strong class="font-num text-neutral-800">${inv.dueDateFormatted}</strong></span>
+              <span>•</span>
+              <span>Mensalidade: <strong class="font-num text-neutral-900 font-bold">${formatMoney(inv.amount)}</strong></span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <div>${badgeHtml}</div>
+            <button onclick="copyPixCode('${inv.id}')" class="px-2.5 py-1.5 rounded-xl bg-white border border-neutral-200 hover:bg-neutral-50 text-neutral-800 text-xs font-semibold cursor-pointer shadow-2xs">
+              Copiar Pix
+            </button>
+            <button onclick="toggleBlockShopkeeper('${inv.id}')" class="px-2.5 py-1.5 rounded-xl text-xs font-semibold cursor-pointer shadow-2xs ${inv.isBlocked ? 'bg-neutral-900 text-white' : 'bg-rose-100 text-rose-900 border border-rose-200'}">
+              ${inv.isBlocked ? 'Desbloquear' : 'Bloquear Acesso'}
+            </button>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+    }
+
+    function copyPixCode(invoiceId) {
+      const inv = invoices.find(i => i.id === invoiceId);
+      if (inv) {
+        navigator.clipboard.writeText(inv.pixKey).then(() => {
+          showAdminToast(`Chave Pix de ${formatMoney(inv.amount)} copiada com sucesso!`);
+        });
+      }
+    }
+
+    function toggleBlockShopkeeper(invoiceId) {
+      const inv = invoices.find(i => i.id === invoiceId);
+      if (inv) {
+        inv.isBlocked = !inv.isBlocked;
+        showAdminToast(`Status do lojista alterado: ${inv.isBlocked ? 'Acesso Bloqueado' : 'Acesso Liberado'}`);
+        renderAdminView();
+      }
+    }
+
+    function showAdminToast(msg) {
+      const toast = document.getElementById('admin-toast');
+      document.getElementById('admin-toast-text').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 3500);
+    }
+
+    // Timer regressivo
+    setInterval(() => {
+      if (quotation.secondsRemaining > 0) {
+        quotation.secondsRemaining--;
+        const h = Math.floor(quotation.secondsRemaining / 3600).toString().padStart(2, '0');
+        const m = Math.floor((quotation.secondsRemaining % 3600) / 60).toString().padStart(2, '0');
+        const s = (quotation.secondsRemaining % 60).toString().padStart(2, '0');
+        const el = document.getElementById('countdown-timer');
+        if (el) el.textContent = `${h}:${m}:${s}`;
+      }
+    }, 1000);
+
+    // Boot inicial
+    renderQuotationView();
+  </script>
+</body>
+</html>

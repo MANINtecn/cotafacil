@@ -1,0 +1,239 @@
+{
+  "entities": {
+    "quotation": {
+      "title": "Quotation",
+      "description": "Represents an active or finished B2B procurement quotation cycle.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Title of the quotation, e.g., Feira Semanal - Hortifrúti",
+          "maxLength": 100
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the quotation cycle",
+          "enum": ["Em Cotação", "Finalizada", "Rascunho"]
+        },
+        "deadline": {
+          "type": "string",
+          "description": "Target expiration or countdown ISO date string",
+          "maxLength": 40
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the shopkeeper/buyer owner",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "ISO timestamp of creation",
+          "maxLength": 40
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "ISO timestamp of last update",
+          "maxLength": 40
+        }
+      },
+      "required": ["title", "status", "userId", "createdAt"]
+    },
+    "vendor": {
+      "title": "Vendor",
+      "description": "A supplier or sales representative participating in a quotation.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of representative",
+          "maxLength": 80
+        },
+        "company": {
+          "type": "string",
+          "description": "Company/Supplier name",
+          "maxLength": 100
+        },
+        "hasViewed": {
+          "type": "boolean",
+          "description": "Whether the vendor viewed the quotation list"
+        },
+        "minOrderValue": {
+          "type": "number",
+          "description": "Minimum required order value in BRL"
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the quotation owner",
+          "maxLength": 128
+        }
+      },
+      "required": ["name", "company", "hasViewed", "minOrderValue", "userId"]
+    },
+    "product": {
+      "title": "Product",
+      "description": "Item being quoted in the procurement cycle.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Product title, e.g., Tomate Italiano",
+          "maxLength": 100
+        },
+        "category": {
+          "type": "string",
+          "description": "Category name, e.g., Legumes, Frutas, Verduras",
+          "maxLength": 50
+        },
+        "quantity": {
+          "type": "number",
+          "description": "Requested quantity"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement, e.g., kg, cx, un, maço",
+          "maxLength": 20
+        },
+        "userId": {
+          "type": "string",
+          "description": "UID of the quotation owner",
+          "maxLength": 128
+        }
+      },
+      "required": ["name", "category", "quantity", "unit", "userId"]
+    },
+    "order": {
+      "title": "PurchaseOrder",
+      "description": "Generated purchase order for a specific vendor meeting the criteria.",
+      "type": "object",
+      "properties": {
+        "quotationId": {
+          "type": "string",
+          "description": "ID of the parent quotation",
+          "maxLength": 128
+        },
+        "vendorId": {
+          "type": "string",
+          "description": "ID of the supplier",
+          "maxLength": 128
+        },
+        "vendorName": {
+          "type": "string",
+          "description": "Name of the supplier",
+          "maxLength": 100
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "Total order amount in BRL"
+        },
+        "itemsCount": {
+          "type": "number",
+          "description": "Number of winning items included"
+        },
+        "status": {
+          "type": "string",
+          "description": "Order status",
+          "enum": ["Enviado", "Confirmado", "Cancelado"]
+        },
+        "userId": {
+          "type": "string",
+          "description": "Buyer user ID",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp of order generation",
+          "maxLength": 40
+        }
+      },
+      "required": ["quotationId", "vendorId", "vendorName", "totalAmount", "userId", "createdAt"]
+    },
+    "billingInvoice": {
+      "title": "BillingInvoice",
+      "description": "Monthly SaaS subscription fee charged to a shopkeeper.",
+      "type": "object",
+      "properties": {
+        "shopkeeperName": {
+          "type": "string",
+          "description": "Name of the shopkeeper or supermarket",
+          "maxLength": 100
+        },
+        "slug": {
+          "type": "string",
+          "description": "Shopkeeper unique workspace slug",
+          "maxLength": 60
+        },
+        "planName": {
+          "type": "string",
+          "description": "SaaS Subscription Tier",
+          "maxLength": 50
+        },
+        "amount": {
+          "type": "number",
+          "description": "Monthly fee amount in BRL"
+        },
+        "dueDate": {
+          "type": "string",
+          "description": "Due date in ISO format",
+          "maxLength": 40
+        },
+        "status": {
+          "type": "string",
+          "description": "Billing status",
+          "enum": ["Pago", "Pendente", "Atrasado"]
+        },
+        "isBlocked": {
+          "type": "boolean",
+          "description": "Whether the shopkeeper SaaS access is locked"
+        },
+        "pixKey": {
+          "type": "string",
+          "description": "Pix copia e cola string",
+          "maxLength": 200
+        },
+        "whatsapp": {
+          "type": "string",
+          "description": "Shopkeeper WhatsApp phone number",
+          "maxLength": 30
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID",
+          "maxLength": 128
+        }
+      },
+      "required": ["shopkeeperName", "amount", "dueDate", "status"]
+    }
+  },
+  "firestore": {
+    "/quotations/{quotationId}": {
+      "schema": {
+        "$ref": "#/entities/quotation"
+      },
+      "description": "Stores user quotations"
+    },
+    "/quotations/{quotationId}/vendors/{vendorId}": {
+      "schema": {
+        "$ref": "#/entities/vendor"
+      },
+      "description": "Vendors participating in a specific quotation"
+    },
+    "/quotations/{quotationId}/products/{productId}": {
+      "schema": {
+        "$ref": "#/entities/product"
+      },
+      "description": "Products list for a quotation"
+    },
+    "/orders/{orderId}": {
+      "schema": {
+        "$ref": "#/entities/order"
+      },
+      "description": "Generated purchase orders"
+    },
+    "/invoices/{invoiceId}": {
+      "schema": {
+        "$ref": "#/entities/billingInvoice"
+      },
+      "description": "Super admin invoices and subscription tracking"
+    }
+  }
+}

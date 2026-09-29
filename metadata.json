@@ -1,0 +1,6 @@
+{
+  "name": "CotaFácil B2B - Compras Inteligentes",
+  "description": "Interface mobile-first minimalista e analítica para cotação e compras B2B com cálculo dinâmico de menor preço, acompanhamento de fornecedores e validação de pedido mínimo.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
