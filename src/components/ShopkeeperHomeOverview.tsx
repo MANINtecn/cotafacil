@@ -38,26 +38,33 @@ export const ShopkeeperHomeOverview: React.FC<Props> = ({
   onOpenOrders,
   onOpenBilling,
 }) => {
-  // Calculate total estimated savings across all open quotations
+  // Calculate total real savings across all open quotations comparing suppliers' full proposals
   let totalEstimatedSavingsAllLists = 0;
 
   quotations.forEach((bundle) => {
-    (bundle.products || []).forEach((prod) => {
-      const quotesForProd: number[] = [];
-      if (bundle.prices) {
-        Object.values(bundle.prices).forEach((vendorPrices) => {
-          const p = vendorPrices?.[prod.id];
+    const vendorTotalsList: number[] = [];
+    if (bundle.vendors && bundle.prices) {
+      bundle.vendors.forEach((v) => {
+        let vTotal = 0;
+        let quotedAny = false;
+        (bundle.products || []).forEach((prod) => {
+          const p = bundle.prices?.[v.id]?.[prod.id];
           if (p !== null && p !== undefined && p > 0) {
-            quotesForProd.push(p);
+            vTotal += p * prod.quantity;
+            quotedAny = true;
           }
         });
-      }
-      if (quotesForProd.length >= 2) {
-        const minP = Math.min(...quotesForProd);
-        const maxP = Math.max(...quotesForProd);
-        totalEstimatedSavingsAllLists += (maxP - minP) * prod.quantity;
-      }
-    });
+        if (quotedAny && vTotal > 0) {
+          vendorTotalsList.push(vTotal);
+        }
+      });
+    }
+
+    if (vendorTotalsList.length >= 2) {
+      const minVendor = Math.min(...vendorTotalsList);
+      const maxVendor = Math.max(...vendorTotalsList);
+      totalEstimatedSavingsAllLists += Math.max(0, maxVendor - minVendor);
+    }
   });
 
   return (

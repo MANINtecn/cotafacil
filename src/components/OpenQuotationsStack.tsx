@@ -97,31 +97,31 @@ export const OpenQuotationsStack: React.FC<Props> = ({
               });
             }
 
-            // Calculate Economia Estimada for THIS specific quotation bundle
-            let totalMinPrice = 0;
-            let estimatedSavings = 0;
-
-            (bundle.products || []).forEach((prod) => {
-              const quotesForProd: number[] = [];
-              if (bundle.prices) {
-                Object.values(bundle.prices).forEach((vendorPrices) => {
-                  const p = vendorPrices?.[prod.id];
+            // Calculate real list savings between suppliers for THIS specific quotation bundle
+            const vendorTotalsList: number[] = [];
+            if (bundle.vendors && bundle.prices) {
+              bundle.vendors.forEach((v) => {
+                let vTotal = 0;
+                let quotedAny = false;
+                (bundle.products || []).forEach((prod) => {
+                  const p = bundle.prices?.[v.id]?.[prod.id];
                   if (p !== null && p !== undefined && p > 0) {
-                    quotesForProd.push(p);
+                    vTotal += p * prod.quantity;
+                    quotedAny = true;
                   }
                 });
-              }
-
-              if (quotesForProd.length > 0) {
-                const minP = Math.min(...quotesForProd);
-                totalMinPrice += minP * prod.quantity;
-
-                if (quotesForProd.length >= 2) {
-                  const maxP = Math.max(...quotesForProd);
-                  estimatedSavings += (maxP - minP) * prod.quantity;
+                if (quotedAny && vTotal > 0) {
+                  vendorTotalsList.push(vTotal);
                 }
-              }
-            });
+              });
+            }
+
+            const totalMinPrice = vendorTotalsList.length > 0 ? Math.min(...vendorTotalsList) : 0;
+            let estimatedSavings = 0;
+            if (vendorTotalsList.length >= 2) {
+              const maxVendor = Math.max(...vendorTotalsList);
+              estimatedSavings = Math.max(0, maxVendor - totalMinPrice);
+            }
 
             return (
               <div

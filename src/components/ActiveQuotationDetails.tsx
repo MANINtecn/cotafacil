@@ -152,13 +152,23 @@ export const ActiveQuotationDetails: React.FC<Props> = ({
 
   // Overall totals for active quotation
   let totalOptimizedBasket = 0;
-  let totalQuotationSavings = 0;
   productsAnalysis.forEach((pa) => {
     if (pa.bestPrice !== null) {
       totalOptimizedBasket += pa.bestPrice * pa.product.quantity;
-      totalQuotationSavings += pa.estimatedSavings;
     }
   });
+
+  // Calculate real total list savings between the best (lowest total) vendor and the highest vendor
+  const validVendorTotals = vendorsAnalysis
+    .filter((va) => va.quotedCount > 0 && va.totalOffered > 0)
+    .map((va) => va.totalOffered);
+
+  const lowestVendorTotal = validVendorTotals.length > 0 ? Math.min(...validVendorTotals) : 0;
+  const highestVendorTotal = validVendorTotals.length > 0 ? Math.max(...validVendorTotals) : 0;
+
+  // Real savings between choosing the cheaper supplier for the entire list vs the more expensive supplier
+  const totalQuotationSavings =
+    validVendorTotals.length >= 2 ? Math.max(0, highestVendorTotal - lowestVendorTotal) : 0;
 
   return (
     <div id="detalhes-cotacao-ativa" className="space-y-5 pt-2 scroll-mt-6">
@@ -219,19 +229,21 @@ export const ActiveQuotationDetails: React.FC<Props> = ({
           <div className="p-4 rounded-2xl bg-emerald-50/90 border-2 border-emerald-400 space-y-1">
             <div className="flex items-center gap-1.5 text-emerald-950 font-extrabold text-[11px] uppercase tracking-wider">
               <TrendingDown className="w-4 h-4 text-emerald-700" />
-              <span>Economia Estimada da Lista</span>
+              <span>Economia Real da Lista</span>
             </div>
             <div className="text-xl sm:text-2xl font-black font-mono-num text-emerald-800">
               {totalQuotationSavings > 0 ? (
                 formatCurrencyBRL(totalQuotationSavings)
-              ) : vendors.length >= 2 ? (
+              ) : validVendorTotals.length >= 2 ? (
                 'R$ 0,00'
               ) : (
                 <span className="text-sm font-bold text-emerald-700">Aguardando mais lances</span>
               )}
             </div>
             <span className="text-[10px] text-emerald-900/80 block">
-              Diferença entre o menor lance e a maior oferta
+              {validVendorTotals.length >= 2
+                ? `Diferença direta entre a menor proposta (${formatCurrencyBRL(lowestVendorTotal)}) e a maior (${formatCurrencyBRL(highestVendorTotal)})`
+                : 'Aguardando pelo menos 2 fornecedores enviarem lances'}
             </span>
           </div>
 
@@ -249,15 +261,15 @@ export const ActiveQuotationDetails: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* 2. Products Table & Comparative Prices (Line-by-line list optimized for lojistas) */}
+      {/* 2. Products Table & Comparative Prices (Clean single line per product) */}
       <div className="bg-white rounded-3xl border-2 border-neutral-300 p-5 sm:p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b-2 border-neutral-200">
           <div>
             <h2 className="text-base sm:text-lg font-black text-neutral-950 tracking-tight">
-              Itens Solicitados & Comparativo de Preços
+              Itens Solicitados & Menor Preço
             </h2>
             <p className="text-xs text-neutral-500">
-              Visualização linha por linha: <strong className="text-emerald-700">Verde</strong> para menor preço, <strong className="text-rose-700">Vermelho</strong> para preço mais caro, <strong className="text-neutral-500">Cinza/Branco</strong> aguardando proposta.
+              Lista limpa em linha única com o menor preço identificado por produto.
             </p>
           </div>
           <span className="text-xs font-mono-num font-bold text-neutral-600 bg-neutral-100 px-3 py-1 rounded-full border border-neutral-300 shrink-0">
@@ -270,79 +282,43 @@ export const ActiveQuotationDetails: React.FC<Props> = ({
             Nenhum produto cadastrado nesta lista.
           </div>
         ) : (
-          <div className="divide-y-2 divide-neutral-100">
-            {productsAnalysis.map(({ product, index, quotes, validQuotes, bestPrice, worstPrice, bestVendor }) => {
+          <div className="divide-y divide-neutral-200">
+            {productsAnalysis.map(({ product, index, bestPrice, bestVendor }) => {
               return (
                 <div
                   key={product.id}
-                  className="py-3 px-2 sm:px-3 hover:bg-neutral-50/80 rounded-xl transition-colors space-y-2"
+                  className="py-3 px-2 sm:px-3 hover:bg-neutral-50/80 rounded-xl transition-colors flex items-center justify-between gap-3"
                 >
-                  {/* Top Line: Item Number, Product Name, Quantity and Best Price Badge */}
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="font-mono-num font-black text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-md shrink-0">
-                        #{index + 1}
-                      </span>
-                      <span className="font-extrabold text-sm sm:text-base text-neutral-950 truncate">
-                        {product.name}
-                      </span>
-                      <span className="px-2 py-0.5 bg-neutral-100 border border-neutral-300 rounded-md font-mono-num font-black text-neutral-900 text-xs uppercase shrink-0">
-                        {product.quantity} {product.unit}
-                      </span>
-                    </div>
+                  {/* Left Side: Item Number, Product Name, Quantity and Unit */}
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                    <span className="font-mono-num font-black text-xs text-neutral-500 bg-neutral-100 px-2 py-0.5 rounded-md shrink-0">
+                      #{index + 1}
+                    </span>
+                    <span className="font-extrabold text-xs sm:text-sm text-neutral-950 truncate">
+                      {product.name}
+                    </span>
+                    <span className="px-2 py-0.5 bg-neutral-100 border border-neutral-300 rounded-md font-mono-num font-black text-neutral-900 text-[11px] sm:text-xs uppercase shrink-0">
+                      {product.quantity} {product.unit}
+                    </span>
+                  </div>
 
-                    {/* Best Price Quick Highlight */}
+                  {/* Right Side: Lowest Price Quick Highlight in the same line */}
+                  <div className="shrink-0">
                     {bestPrice !== null ? (
-                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shrink-0 self-start sm:self-auto">
-                        <Check className="w-3.5 h-3.5 text-emerald-600" />
-                        <span>Menor: <strong className="font-mono-num font-black text-emerald-900">{formatCurrencyBRL(bestPrice)}</strong></span>
-                        <span className="text-[11px] text-emerald-700 font-normal">({bestVendor?.company || bestVendor?.name})</span>
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 text-xs font-bold shadow-2xs">
+                        <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                        <span>
+                          Menor: <strong className="font-mono-num font-black text-emerald-900">{formatCurrencyBRL(bestPrice)}</strong>
+                        </span>
+                        <span className="text-[11px] text-emerald-700 font-normal hidden sm:inline">
+                          ({bestVendor?.company || bestVendor?.name})
+                        </span>
                       </div>
                     ) : (
-                      <span className="text-xs text-neutral-400 italic bg-neutral-50 px-2.5 py-0.5 rounded-lg border border-neutral-200 shrink-0 self-start sm:self-auto">
+                      <span className="text-xs text-neutral-400 italic bg-neutral-50 px-2.5 py-1 rounded-xl border border-neutral-200">
                         Aguardando cotação
                       </span>
                     )}
-                  </div>
-
-                  {/* Bottom Line: Compact horizontal row of supplier bids */}
-                  <div className="flex items-center gap-2 flex-wrap pl-0 sm:pl-8">
-                    <span className="text-[11px] font-bold uppercase text-neutral-400 shrink-0 mr-1 hidden sm:inline">
-                      Lances:
-                    </span>
-                    {quotes.map(({ vendor, price }) => {
-                      const isBlank = price === null || price === undefined || price <= 0;
-                      const isBest = !isBlank && bestPrice !== null && price === bestPrice;
-                      const isExpensive = !isBlank && bestPrice !== null && price > bestPrice;
-
-                      let chipStyle = 'bg-white border-neutral-300 text-neutral-700';
-                      let chipText = !isBlank ? formatCurrencyBRL(price!) : '—';
-                      let diffTag = null;
-
-                      if (isBlank) {
-                        chipStyle = 'bg-neutral-50 border-neutral-200 text-neutral-400';
-                        chipText = '—';
-                      } else if (isBest) {
-                        chipStyle = 'bg-emerald-50 border-emerald-400 text-emerald-950 font-black shadow-2xs';
-                        diffTag = <span className="text-[10px] text-emerald-700 font-bold ml-1">✓ Menor</span>;
-                      } else if (isExpensive) {
-                        const diff = Math.round(((price - bestPrice!) / bestPrice!) * 100);
-                        chipStyle = 'bg-rose-50 border-rose-300 text-rose-950';
-                        diffTag = <span className="text-[10px] text-rose-700 font-bold ml-1">+{diff}%</span>;
-                      }
-
-                      return (
-                        <div
-                          key={vendor.id}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl border text-xs ${chipStyle}`}
-                          title={`${vendor.company}: ${!isBlank ? formatCurrencyBRL(price!) : 'Sem lance'}`}
-                        >
-                          <span className="font-semibold text-neutral-800">{vendor.company}:</span>
-                          <span className="font-mono-num font-bold">{chipText}</span>
-                          {diffTag}
-                        </div>
-                      );
-                    })}
                   </div>
                 </div>
               );
