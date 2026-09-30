@@ -7,7 +7,6 @@ import React, { useState, useEffect } from 'react';
 import { Product, Vendor, PurchaseOrder, BillingInvoice, AppScreen, Quotation, ShopkeeperStore, UserRole } from './types';
 import { calculateOptimizedBasket, formatCurrencyBRL } from './utils/calculations';
 import { HeaderQuotation } from './components/HeaderQuotation';
-import { FinancialSummaryCard } from './components/FinancialSummaryCard';
 import { VendorsList } from './components/VendorsList';
 import { VendorAnalyticsView } from './components/VendorAnalyticsView';
 import { DynamicFooterAction } from './components/DynamicFooterAction';
@@ -20,9 +19,14 @@ import { LaunchQuotationView } from './components/LaunchQuotationView';
 import { ManageVendorsModal } from './components/ManageVendorsModal';
 import { WhatsAppDispatchModal } from './components/WhatsAppDispatchModal';
 import { SupplierPortalView } from './components/SupplierPortalView';
+import { QuotationsHistoryModal } from './components/QuotationsHistoryModal';
+import { ShopkeeperBillingModal } from './components/ShopkeeperBillingModal';
+import { OpenQuotationsStack } from './components/OpenQuotationsStack';
+import { ActiveQuotationDetails } from './components/ActiveQuotationDetails';
+import { ShopkeeperHomeOverview } from './components/ShopkeeperHomeOverview';
 import { auth, db, testConnection, handleFirestoreError, OperationType, logOut } from './firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
 import {
   getStoredStores,
   addStore,
@@ -39,6 +43,11 @@ import {
   saveQuotationBundle,
   getActiveQuotationBundle,
   saveVendorQuotationPrices,
+  getQuotationsHistory,
+  saveQuotationToHistory,
+  deleteQuotationFromHistory,
+  decodeQuotationPayload,
+  buildSupplierQuotationLink,
   QuotationBundle
 } from './utils/storeManager';
 import {
@@ -50,7 +59,9 @@ import {
   PlusCircle,
   ArrowRight,
   CheckCircle2,
-  Store
+  Store,
+  History,
+  RotateCcw
 } from 'lucide-react';
 
 const INITIAL_CLEAN_QUOTATION: Quotation = {
@@ -76,7 +87,7 @@ export default function App() {
     return list.length > 0 ? list[0] : null;
   });
 
-  // Vendors for active store
+  // Vendors for active store - clean of mock vendors
   const [vendors, setVendors] = useState<Vendor[]>(() => {
     const initialList = getStoredStores();
     const activeSlug = initialList.length > 0 ? initialList[0].slug : undefined;
@@ -111,16 +122,57 @@ export default function App() {
   const [isOrdersDrawerOpen, setIsOrdersDrawerOpen] = useState(false);
   const [isManageVendorsModalOpen, setIsManageVendorsModalOpen] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
+  const [quotationsHistory, setQuotationsHistory] = useState<QuotationBundle[]>(() =>
+    getQuotationsHistory(currentStore?.slug)
+  );
+  const [isViewingQuotationDetail, setIsViewingQuotationDetail] = useState(false);
+  const [launchInitialTitle, setLaunchInitialTitle] = useState<string>('');
+  const [launchInitialProducts, setLaunchInitialProducts] = useState<Product[]>([]);
+
   const [dispatchQuotationData, setDispatchQuotationData] = useState<{
     quotation: Quotation;
     vendors: Vendor[];
     productsCount: number;
+    products: Product[];
   } | null>(null);
   const [lastCreatedOrder, setLastCreatedOrder] = useState<PurchaseOrder | null>(null);
   const [orders, setOrders] = useState<PurchaseOrder[]>([]);
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
 
-  // Check URL parameters for direct supplier quoting access (?role=fornecedor&v=...)
+  // Stored URL vendor info for robust direct supplier access without generic fallback
+  const [urlVendorInfo, setUrlVendorInfo] = useState<{
+    id: string;
+    name: string;
+    company: string;
+    minOrderValue: number;
+    phone?: string;
+    deliveryDays?: string;
+  } | null>(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const v = params.get('v') || params.get('vendorId');
+      const vn = params.get('vn');
+      const vc = params.get('vc');
+      const vm = params.get('vm');
+      const vp = params.get('vp');
+      const vd = params.get('vd');
+      if (v || vn || vc) {
+        return {
+          id: v || 'v1',
+          name: vn || 'Representante',
+          company: vc || 'Distribuidora',
+          minOrderValue: vm ? parseFloat(vm) : 0,
+          phone: vp || '',
+          deliveryDays: vd || 'Entrega em 24h',
+        };
+      }
+    } catch {}
+    return null;
+  });
+
+  // Check URL parameters for direct supplier quoting access (?role=fornecedor&cot=...&v=...)
   useEffect(() => {
     const handleUrlRouting = async () => {
       try {
@@ -128,39 +180,141 @@ export default function App() {
         const roleParam = params.get('role');
         const vParam = params.get('v') || params.get('vendorId');
         const cotParam = params.get('cot') || params.get('cotacao');
+        const dParam = params.get('d') || params.get('data');
+        const vnParam = params.get('vn');
+        const vcParam = params.get('vc');
+        const vmParam = params.get('vm');
+        const vdParam = params.get('vd');
+        const vpParam = params.get('vp');
+        const sParam = params.get('s');
+        const swParam = params.get('sw');
 
-        // 1. Try to load the specific quotation bundle from localStorage
-        let bundle = getActiveQuotationBundle(cotParam);
+        const isSupplierAccess = roleParam === 'fornecedor' || Boolean(vParam) || Boolean(dParam);
 
-        // 2. If not found in localStorage or accessed from mobile/another browser, fetch from Firestore
-        if ((!bundle || bundle.products.length === 0) && cotParam) {
+        if (!isSupplierAccess && !cotParam) {
+          return;
+        }
+
+        if (isSupplierAccess) {
+          setCurrentUserRole('fornecedor');
+          setCurrentScreen('supplier-portal');
+          if (vParam) setSelectedVendorId(vParam);
+        }
+
+        if (vnParam || vcParam) {
+          setUrlVendorInfo({
+            id: vParam || 'v1',
+            name: vnParam || 'Representante',
+            company: vcParam || 'Distribuidora',
+            minOrderValue: vmParam ? parseFloat(vmParam) : 0,
+            phone: vpParam || '',
+            deliveryDays: vdParam || 'Entrega em 24h',
+          });
+        }
+
+        // 1. Fetch from Firestore by quotation code if cotParam exists (works across all browsers/devices)
+        const targetCode = cotParam || (dParam ? decodeQuotationPayload(dParam)?.cot : null);
+        if (targetCode) {
           try {
-            const snap = await getDoc(doc(db, 'quotations', cotParam));
+            const snap = await getDoc(doc(db, 'quotations', targetCode));
             if (snap.exists()) {
-              bundle = snap.data() as QuotationBundle;
-              saveQuotationBundle(bundle);
+              const b = snap.data() as QuotationBundle;
+              if (b.quotation) setQuotation(b.quotation);
+              if (b.products && b.products.length > 0) setProducts(b.products);
+              if (b.vendors && b.vendors.length > 0) {
+                setVendors(b.vendors);
+                if (vParam) {
+                  const matched = b.vendors.find((v) => v.id === vParam);
+                  if (matched) {
+                    setSelectedVendorId(matched.id);
+                  }
+                }
+              }
+              if (b.prices) setPrices(b.prices);
+              if (b.storeName) {
+                setCurrentStore({
+                  id: 'store-active',
+                  name: b.storeName,
+                  slug: b.storeSlug || 'loja',
+                  contactPerson: 'Lojista',
+                  email: '',
+                  whatsapp: swParam || '',
+                  monthlyFee: 390,
+                  dueDay: 10,
+                  planName: 'Plano Pro',
+                  status: 'Ativo',
+                  createdAt: new Date().toISOString(),
+                });
+              }
+              saveQuotationBundle(b);
+              return;
             }
           } catch (e) {
             console.warn('Firestore load quotation attempt:', e);
           }
         }
 
-        if (bundle) {
-          setQuotation(bundle.quotation);
-          setProducts(bundle.products);
-          if (bundle.vendors && bundle.vendors.length > 0) {
-            setVendors(bundle.vendors);
-          }
-          if (bundle.prices) {
-            setPrices(bundle.prices);
+        // 2. Decode self-contained payload 'd' as backup
+        if (dParam) {
+          const decoded = decodeQuotationPayload(dParam);
+          if (decoded && decoded.p && decoded.p.length > 0) {
+            const reconstructedProducts: Product[] = decoded.p.map((item, idx) => ({
+              id: item.id || `p-${idx + 1}`,
+              name: item.n,
+              quantity: item.q,
+              unit: item.u,
+            }));
+
+            const reconstructedVendor: Vendor = {
+              id: decoded.v || vParam || 'v1',
+              name: decoded.vn || vnParam || 'Representante',
+              company: decoded.vc || vcParam || 'Distribuidora',
+              minOrderValue: decoded.vm || 0,
+              phone: decoded.vp || vpParam || '',
+              deliveryDays: decoded.vd || vdParam || 'Entrega em 24h',
+              hasViewed: true,
+            };
+
+            const reconstructedQuotation: Quotation = {
+              id: decoded.cot || 'COT-B2B',
+              code: decoded.cot || 'COT-B2B',
+              title: decoded.t || 'Cotação de Compras',
+              status: 'Em Cotação',
+              createdAt: new Date().toISOString(),
+              deadlineHours: 24,
+              deadlineMinutes: 0,
+              deadlineSeconds: 0,
+              deadlineAt: decoded.d,
+            };
+
+            setProducts(reconstructedProducts);
+            setQuotation(reconstructedQuotation);
+            setVendors([reconstructedVendor]);
+            setSelectedVendorId(reconstructedVendor.id);
+
+            const b: QuotationBundle = {
+              quotation: reconstructedQuotation,
+              products: reconstructedProducts,
+              vendors: [reconstructedVendor],
+              storeName: decoded.s || sParam || 'Loja',
+              storeSlug: 'loja',
+              prices: {},
+              updatedAt: new Date().toISOString(),
+            };
+            saveQuotationBundle(b);
+            return;
           }
         }
 
-        // 3. Direct vendor routing into Supplier Quoting Portal
-        if (roleParam === 'fornecedor' || vParam) {
-          if (vParam) setSelectedVendorId(vParam);
-          setCurrentUserRole('fornecedor');
-          setCurrentScreen('supplier-portal');
+        // 3. Fallback: LocalStorage bundle
+        const localBundle = getActiveQuotationBundle(targetCode);
+        if (localBundle) {
+          setQuotation(localBundle.quotation);
+          setProducts(localBundle.products);
+          if (localBundle.vendors && localBundle.vendors.length > 0) {
+            setVendors(localBundle.vendors);
+          }
+          if (localBundle.prices) setPrices(localBundle.prices);
         }
       } catch (err) {
         console.error('URL routing error:', err);
@@ -211,23 +365,65 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Update vendors whenever currentStore changes
+  // Update vendors & history whenever currentStore changes (only in lojista mode to avoid overwriting supplier state)
   useEffect(() => {
-    if (currentStore) {
+    if (currentStore && currentUserRole === 'lojista') {
       const vList = getStoredVendors(currentStore.slug);
       setVendors(vList);
+      setQuotationsHistory(getQuotationsHistory(currentStore.slug));
     }
-  }, [currentStore]);
+  }, [currentStore, currentUserRole]);
+
+  // Real-time synchronization of active quotation for lojista
+  useEffect(() => {
+    if (currentUserRole === 'lojista' && quotation.code) {
+      try {
+        const unsub = onSnapshot(doc(db, 'quotations', quotation.code), (snapshot) => {
+          if (snapshot.exists()) {
+            const liveData = snapshot.data() as QuotationBundle;
+            if (liveData.prices) {
+              setPrices(liveData.prices);
+            }
+            if (liveData.vendors && liveData.vendors.length > 0) {
+              setVendors((prev) =>
+                prev.map((v) => {
+                  const match = liveData.vendors.find((lv) => lv.id === v.id);
+                  return match
+                    ? { ...v, hasViewed: match.hasViewed, deliveryDays: match.deliveryDays || v.deliveryDays }
+                    : v;
+                })
+              );
+            }
+          }
+        });
+        return () => unsub();
+      } catch (err) {
+        console.warn('Real-time quotation onSnapshot error:', err);
+      }
+    }
+  }, [currentUserRole, quotation.code]);
 
   // Compute dynamic market-wide optimized total
   const optimizedData = calculateOptimizedBasket(products, prices);
-  const selectedVendor = vendors.find((v) => v.id === selectedVendorId) || vendors[0] || {
-    id: 'v1',
-    name: 'Representante',
-    company: 'Distribuidora',
-    hasViewed: false,
-    minOrderValue: 500,
-  };
+  const selectedVendor: Vendor =
+    vendors.find((v) => v.id === selectedVendorId) ||
+    (urlVendorInfo && urlVendorInfo.id === selectedVendorId
+      ? {
+          id: urlVendorInfo.id,
+          name: urlVendorInfo.name,
+          company: urlVendorInfo.company,
+          minOrderValue: urlVendorInfo.minOrderValue,
+          phone: urlVendorInfo.phone,
+          deliveryDays: urlVendorInfo.deliveryDays,
+          hasViewed: true,
+        }
+      : vendors[0] || {
+          id: selectedVendorId || 'v1',
+          name: urlVendorInfo?.name || 'Representante Comercial',
+          company: urlVendorInfo?.company || 'Distribuidora Fornecedora',
+          hasViewed: false,
+          minOrderValue: urlVendorInfo?.minOrderValue || 500,
+        });
 
   // --- LOGIN & REGISTRATION HANDLERS ---
   const handleLoginAsLojista = (slugOrEmail?: string) => {
@@ -322,22 +518,83 @@ export default function App() {
     // 2. Persist to storage
     saveVendorQuotationPrices(selectedVendorId, quotation.code, newVendorPrices, notes);
 
-    // 3. Persist to Firestore if available
-    try {
-      if (quotation.code) {
-        await setDoc(
-          doc(db, 'quotations', quotation.code),
-          {
-            prices: {
-              [selectedVendorId]: newVendorPrices,
+    // Update stack history in local state & storage
+    setQuotationsHistory((prev) => {
+      const updated = prev.map((b) => {
+        if (b.quotation.code === quotation.code) {
+          const mergedBundlePrices = {
+            ...(b.prices || {}),
+            [selectedVendorId]: {
+              ...(b.prices?.[selectedVendorId] || {}),
+              ...newVendorPrices,
             },
+          };
+          const mergedBundleVendors = (b.vendors || vendors).map((v) =>
+            v.id === selectedVendorId
+              ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
+              : v
+          );
+          const updatedB: QuotationBundle = {
+            ...b,
+            prices: mergedBundlePrices,
+            vendors: mergedBundleVendors,
             updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
+          };
+          saveQuotationToHistory(updatedB, currentStore?.slug);
+          return updatedB;
+        }
+        return b;
+      });
+      return updated;
+    });
+
+    // 3. Persist to Firestore:
+    // Update active quotation with vendor's prices and viewed status
+    if (quotation.code) {
+      try {
+        const qRef = doc(db, 'quotations', quotation.code);
+        const snap = await getDoc(qRef);
+        if (snap.exists()) {
+          const curData = snap.data();
+          const mergedPrices = {
+            ...(curData.prices || {}),
+            [selectedVendorId]: {
+              ...(curData.prices?.[selectedVendorId] || {}),
+              ...newVendorPrices,
+            },
+          };
+          const mergedVendors = (curData.vendors || []).map((v: Vendor) =>
+            v.id === selectedVendorId
+              ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
+              : v
+          );
+
+          await updateDoc(qRef, {
+            prices: mergedPrices,
+            vendors: mergedVendors,
+            updatedAt: new Date().toISOString(),
+          });
+        } else {
+          await setDoc(
+            qRef,
+            {
+              code: quotation.code,
+              quotation,
+              products,
+              prices: { [selectedVendorId]: newVendorPrices },
+              vendors: vendors.map((v) =>
+                v.id === selectedVendorId
+                  ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
+                  : v
+              ),
+              updatedAt: new Date().toISOString(),
+            },
+            { merge: true }
+          );
+        }
+      } catch (err) {
+        console.error('Error saving supplier proposal to Firestore:', err);
       }
-    } catch (e) {
-      console.warn('Firestore proposal update optional:', e);
     }
   };
 
@@ -356,6 +613,94 @@ export default function App() {
     setCurrentUserRole(null);
     setCurrentScreen('login');
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // --- QUOTATION STACK, SELECTION & REUSE ---
+  const handleSelectQuotation = async (code: string) => {
+    const bundle = quotationsHistory.find((b) => b.quotation.code === code) || getActiveQuotationBundle(code);
+    if (bundle) {
+      setQuotation(bundle.quotation);
+      setProducts(bundle.products || []);
+      setPrices(bundle.prices || {});
+      if (bundle.vendors && bundle.vendors.length > 0) {
+        const cleanVendors = bundle.vendors.filter(v => !['v1', 'v2', 'v3', 'v4'].includes(v.id) && !['Distribuidora Bom Preço', 'Hortifrúti Ceasa Sul', 'AgroComercial Da Terra', 'Verduras Express Ltda'].includes(v.company));
+        setVendors(cleanVendors);
+      }
+      saveQuotationBundle(bundle);
+    }
+    setIsViewingQuotationDetail(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+
+    try {
+      const snap = await getDoc(doc(db, 'quotations', code));
+      if (snap.exists()) {
+        const live = snap.data() as QuotationBundle;
+        if (live.prices) setPrices(live.prices);
+        if (live.vendors && live.vendors.length > 0) {
+          const cleanVendors = live.vendors.filter(v => !['v1', 'v2', 'v3', 'v4'].includes(v.id) && !['Distribuidora Bom Preço', 'Hortifrúti Ceasa Sul', 'AgroComercial Da Terra', 'Verduras Express Ltda'].includes(v.company));
+          setVendors(cleanVendors);
+        }
+        if (live.products && live.products.length > 0) setProducts(live.products);
+        if (live.quotation) setQuotation(live.quotation);
+      }
+    } catch {}
+  };
+
+  const handleOpenNewQuotation = () => {
+    setLaunchInitialTitle('');
+    setLaunchInitialProducts([]);
+    setCurrentScreen('launch-quotation');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleReuseQuotation = (bundle: QuotationBundle) => {
+    setLaunchInitialTitle(`${bundle.quotation.title} (Reutilizada)`);
+    setLaunchInitialProducts(bundle.products || []);
+    setIsHistoryModalOpen(false);
+    setCurrentScreen('launch-quotation');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleOpenWhatsAppForBundle = (bundle: QuotationBundle) => {
+    setDispatchQuotationData({
+      quotation: bundle.quotation,
+      vendors: bundle.vendors || vendors,
+      productsCount: bundle.products?.length || 0,
+      products: bundle.products || [],
+    });
+    setIsWhatsAppModalOpen(true);
+  };
+
+  const handleDeleteFromHistory = async (code: string) => {
+    // 1. Delete from local storage (store and global)
+    const updated = deleteQuotationFromHistory(code, currentStore?.slug);
+    setQuotationsHistory(updated);
+
+    // 2. Delete from Firestore
+    try {
+      await deleteDoc(doc(db, 'quotations', code));
+      await deleteDoc(doc(db, 'public_quotations', code));
+    } catch (e) {
+      console.warn('Error deleting quotation from Firestore:', e);
+    }
+
+    // 3. If active quotation was the one deleted, reset or pick next
+    if (quotation.code === code) {
+      if (updated.length > 0) {
+        const nextBundle = updated[0];
+        setQuotation(nextBundle.quotation);
+        setProducts(nextBundle.products || []);
+        setPrices(nextBundle.prices || {});
+        if (nextBundle.vendors && nextBundle.vendors.length > 0) {
+          setVendors(nextBundle.vendors);
+        }
+      } else {
+        setQuotation(INITIAL_CLEAN_QUOTATION);
+        setProducts([]);
+        setPrices({});
+      }
+      setIsViewingQuotationDetail(false);
+    }
   };
 
   // --- VENDORS MANAGEMENT FOR LOJISTA ---
@@ -383,7 +728,7 @@ export default function App() {
   };
 
   // --- QUOTATION CREATION / LAUNCH ---
-  const handleLaunchQuotation = (
+  const handleLaunchQuotation = async (
     newTitle: string,
     deadlineHours: number,
     newProducts: Product[],
@@ -407,20 +752,12 @@ export default function App() {
     setQuotation(updatedQuotation);
     setProducts(newProducts);
 
-    // Generate initial competitive price proposals for selected suppliers
+    // All initial prices are STRICTLY null - zero mock/pre-filled prices!
     const updatedPrices: Record<string, Record<string, number | null>> = {};
     vendors.forEach((v) => {
       updatedPrices[v.id] = {};
-      const shouldParticipate = selectedVendorIds.includes(v.id);
       newProducts.forEach((p) => {
-        if (!shouldParticipate) {
-          updatedPrices[v.id][p.id] = null;
-        } else {
-          const base = p.unit === 'cx' ? 45 : p.unit === 'sc' ? 35 : p.unit === 'un' || p.unit === 'pc' ? 18.5 : 8.5;
-          const randomFactor = 0.85 + Math.random() * 0.3;
-          const val = Math.round(base * randomFactor * 10) / 10;
-          updatedPrices[v.id][p.id] = val;
-        }
+        updatedPrices[v.id][p.id] = null;
       });
     });
 
@@ -440,56 +777,29 @@ export default function App() {
       updatedAt: new Date().toISOString(),
     };
     saveQuotationBundle(bundle);
+    saveQuotationToHistory(bundle, currentStore?.slug);
+    setQuotationsHistory((prev) => [bundle, ...prev.filter((b) => b.quotation.code !== code)]);
 
     try {
-      setDoc(doc(db, 'quotations', code), bundle, { merge: true }).catch((err) =>
-        console.warn('Firestore quotation save notice:', err)
-      );
+      await setDoc(doc(db, 'quotations', code), bundle, { merge: true });
+      await setDoc(doc(db, 'public_quotations', code), bundle, { merge: true });
     } catch (e) {
       console.warn('Firestore quotation save error:', e);
     }
 
     if (selectedVendors.length > 0) {
-      const firstVendor = selectedVendors[0];
-      if (firstVendor && firstVendor.phone) {
-        const digits = firstVendor.phone.replace(/\D/g, '');
-        const cleanPhone = digits.length === 10 || digits.length === 11 ? `55${digits}` : digits;
-        const link = `${window.location.origin}${window.location.pathname}?role=fornecedor&v=${firstVendor.id}&cot=${code}`;
-        const deadlineStr = deadlineAt
-          ? new Intl.DateTimeFormat('pt-BR', {
-              weekday: 'long',
-              day: '2-digit',
-              month: '2-digit',
-              hour: '2-digit',
-              minute: '2-digit',
-            }).format(new Date(deadlineAt))
-          : `${deadlineHours} horas`;
-
-        const msg = `Olá, *${firstVendor.name}* (${firstVendor.company})!\n\n` +
-          `Aqui é da loja *${currentStore?.name || 'Comércio'}*.\n` +
-          `Acabamos de abrir uma nova cotação: *${updatedQuotation.title}* (${code}).\n\n` +
-          `📦 *Total de itens:* ${newProducts.length} produtos\n` +
-          `⏰ *Prazo final para resposta:* ${deadlineStr}\n\n` +
-          `Acesse o link direto abaixo para preencher os seus preços:\n` +
-          `👉 ${link}\n\n` +
-          `Aguardamos sua melhor proposta. Obrigado!`;
-
-        const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
-        try {
-          window.open(waUrl, '_blank');
-        } catch {
-          // Handled in modal
-        }
-      }
-
       setDispatchQuotationData({
         quotation: updatedQuotation,
         vendors: selectedVendors,
         productsCount: newProducts.length,
+        products: newProducts,
       });
       setIsWhatsAppModalOpen(true);
     }
 
+    setLaunchInitialTitle('');
+    setLaunchInitialProducts([]);
+    setIsViewingQuotationDetail(true);
     setCurrentScreen('quotation');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -762,7 +1072,7 @@ export default function App() {
         )}
 
         {/* ======================================================== */}
-        {/* 4. PAINEL PRINCIPAL DO LOJISTA (COTAÇÃO & AUDITORIA)     */}
+        {/* 4. PAINEL PRINCIPAL DO LOJISTA (HOME DASHBOARD & COTAÇÃO) */}
         {/* ======================================================== */}
         {currentScreen === 'quotation' && (
           <div className="flex-1 flex flex-col pb-12 w-full">
@@ -773,191 +1083,82 @@ export default function App() {
               authLoading={authLoading}
               onOpenOrders={() => setIsOrdersDrawerOpen(true)}
               ordersCount={orders.length}
-              onLaunchQuotation={() => setCurrentScreen('launch-quotation')}
+              historyCount={quotationsHistory.length}
+              vendorsCount={vendors.length}
+              onLaunchQuotation={handleOpenNewQuotation}
               onOpenManageVendors={() => setIsManageVendorsModalOpen(true)}
+              onOpenHistory={() => setIsHistoryModalOpen(true)}
+              onOpenBilling={() => setIsBillingModalOpen(true)}
               onLogout={handleLogout}
+              isHome={!isViewingQuotationDetail}
+              onGoHome={() => {
+                setIsViewingQuotationDetail(false);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
             />
 
             <main className="max-w-7xl mx-auto w-full px-4 lg:px-8 pt-5 space-y-6 flex-1">
-              {/* Onboarding Guide se o lojista ainda não tiver fornecedores ou produtos */}
-              {vendors.length === 0 && (
-                <div className="p-6 rounded-3xl bg-neutral-900 text-white shadow-xl space-y-4 border border-neutral-800">
-                  <div className="text-amber-400 font-bold text-xs uppercase tracking-wider">
-                    <span>Guia de Início Rápido do Lojista</span>
-                  </div>
+              {!isViewingQuotationDetail ? (
+                /* Home do Dashboard do Lojista: Dados da Loja + Listas Empilhadas */
+                <div className="space-y-6">
+                  {/* Hero da Loja e Indicadores Gerais */}
+                  <ShopkeeperHomeOverview
+                    store={currentStore}
+                    quotations={quotationsHistory}
+                    vendors={vendors}
+                    ordersCount={orders.length}
+                    onNewQuotation={handleOpenNewQuotation}
+                    onOpenManageVendors={() => setIsManageVendorsModalOpen(true)}
+                    onOpenHistory={() => setIsHistoryModalOpen(true)}
+                    onOpenOrders={() => setIsOrdersDrawerOpen(true)}
+                    onOpenBilling={() => setIsBillingModalOpen(true)}
+                  />
 
-                  <div>
-                    <h2 className="text-xl font-bold tracking-tight">
-                      Bem-vindo ao CotaFácil B2B, {currentStore?.name || 'Lojista'}!
-                    </h2>
-                    <p className="text-xs text-neutral-400 mt-1 max-w-xl leading-relaxed">
-                      Sua conta está criada e pronta para uso em produção. Para realizar sua primeira cotação inteligente com cálculo de menor preço, siga os 3 passos:
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
-                    <div className="p-3.5 rounded-2xl bg-neutral-800/80 border border-neutral-700/60 space-y-2">
-                      <span className="w-6 h-6 rounded-full bg-emerald-500 text-neutral-950 font-black text-xs flex items-center justify-center">
-                        1
-                      </span>
-                      <div className="font-bold text-xs text-white">Cadastre Fornecedores</div>
-                      <p className="text-[11px] text-neutral-400 leading-tight">
-                        Adicione seus distribuidores, contatos de WhatsApp e pedido mínimo.
-                      </p>
-                      <button
-                        onClick={() => setIsManageVendorsModalOpen(true)}
-                        className="w-full py-1.5 px-2.5 rounded-xl bg-white text-neutral-950 font-bold text-[11px] hover:bg-neutral-100 transition-colors cursor-pointer"
-                      >
-                        + Cadastrar Fornecedores
-                      </button>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-neutral-800/80 border border-neutral-700/60 space-y-2">
-                      <span className="w-6 h-6 rounded-full bg-emerald-500 text-neutral-950 font-black text-xs flex items-center justify-center">
-                        2
-                      </span>
-                      <div className="font-bold text-xs text-white">Monte sua Lista</div>
-                      <p className="text-[11px] text-neutral-400 leading-tight">
-                        Cadastre seus produtos com nome, quantidade e unidade.
-                      </p>
-                      <button
-                        onClick={() => setCurrentScreen('launch-quotation')}
-                        className="w-full py-1.5 px-2.5 rounded-xl bg-emerald-500 text-neutral-950 font-bold text-[11px] hover:bg-emerald-400 transition-colors cursor-pointer"
-                      >
-                        + Lançar Lista
-                      </button>
-                    </div>
-
-                    <div className="p-3.5 rounded-2xl bg-neutral-800/80 border border-neutral-700/60 space-y-2">
-                      <span className="w-6 h-6 rounded-full bg-emerald-500 text-neutral-950 font-black text-xs flex items-center justify-center">
-                        3
-                      </span>
-                      <div className="font-bold text-xs text-white">Audite Menores Preços</div>
-                      <p className="text-[11px] text-neutral-400 leading-tight">
-                        O sistema calcula o menor preço e valida o pedido mínimo em tempo real.
-                      </p>
-                      <div className="text-[10px] text-neutral-500 font-mono-num pt-1">
-                        Zero ruído operacional
-                      </div>
-                    </div>
-                  </div>
+                  {/* Listas de Cotação em Aberto */}
+                  <OpenQuotationsStack
+                    openQuotations={quotationsHistory}
+                    activeCode={quotation.code}
+                    onSelectQuotation={(code) => {
+                      handleSelectQuotation(code);
+                      setIsViewingQuotationDetail(true);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    onNewQuotation={handleOpenNewQuotation}
+                    onOpenWhatsApp={handleOpenWhatsAppForBundle}
+                    onReuseQuotation={handleReuseQuotation}
+                    onDeleteQuotation={handleDeleteFromHistory}
+                  />
                 </div>
+              ) : (
+                /* 2. Detalhes Completos da Cotação Aberta: Itens com cores e Lista Limpa de Fornecedores */
+                <ActiveQuotationDetails
+                  quotation={quotation}
+                  products={products}
+                  vendors={vendors}
+                  prices={prices}
+                  openQuotations={quotationsHistory}
+                  onBackToLists={() => {
+                    setIsViewingQuotationDetail(false);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onSelectAnotherQuotation={(code) => {
+                    handleSelectQuotation(code);
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
+                  onSelectVendor={handleOpenVendorAnalytics}
+                  onOpenWhatsApp={() => {
+                    setDispatchQuotationData({
+                      quotation,
+                      vendors,
+                      productsCount: products.length,
+                      products,
+                    });
+                    setIsWhatsAppModalOpen(true);
+                  }}
+                  onGenerateDirectOrder={handleGenerateOrder}
+                  onNewQuotation={handleOpenNewQuotation}
+                />
               )}
-
-              {/* Financial KPI Cards */}
-              <FinancialSummaryCard
-                totalOptimized={optimizedData.totalOptimized}
-                itemsWithQuotes={optimizedData.itemsWithQuotes}
-                totalItems={optimizedData.totalItems}
-              />
-
-              {/* Responsive 2-Column Section on Desktop */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                {/* Left Side: Suppliers Grid / Vertical list (Spans 8 cols on desktop) */}
-                <div className="lg:col-span-8 space-y-4">
-                  {vendors.length === 0 ? (
-                    <div className="p-8 rounded-2xl bg-white border border-dashed border-neutral-300 text-center space-y-3">
-                      <div className="w-10 h-10 rounded-2xl bg-neutral-100 text-neutral-400 flex items-center justify-center mx-auto">
-                        <Building2 className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-bold text-neutral-900">Nenhum fornecedor vinculado a esta loja</h3>
-                        <p className="text-xs text-neutral-500 mt-0.5">
-                          Cadastre os distribuidores que você costuma cotar.
-                        </p>
-                      </div>
-                      <button
-                        onClick={() => setIsManageVendorsModalOpen(true)}
-                        className="py-2 px-4 rounded-xl bg-neutral-900 text-white text-xs font-bold hover:bg-neutral-800 cursor-pointer"
-                      >
-                        + Cadastrar Primeiro Fornecedor
-                      </button>
-                    </div>
-                  ) : (
-                    <VendorsList
-                      vendors={vendors}
-                      products={products}
-                      prices={prices}
-                      onSelectVendor={handleOpenVendorAnalytics}
-                    />
-                  )}
-
-                  {/* Dica de Produtividade */}
-                  <div className="p-4 rounded-2xl border border-neutral-200/90 bg-white shadow-2xs text-xs text-neutral-600 flex items-start gap-3">
-                    <Info className="w-4 h-4 text-neutral-400 mt-0.5 shrink-0" />
-                    <div>
-                      <span className="font-bold text-neutral-900 block mb-0.5">Dica Operacional:</span>
-                      <p className="leading-relaxed text-neutral-600">
-                        O algoritmo cruza os valores unitários de cada representante e calcula o menor preço de balcão disponível. Clique em qualquer fornecedor para inspecionar os lances item a item e conferir se ele atinge o <strong>Pedido Mínimo</strong>.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Side: Desktop Cesta de Produtos em Cotação (Spans 4 cols on desktop) */}
-                <div className="hidden lg:block lg:col-span-4 bg-white border border-neutral-200/90 rounded-2xl p-5 shadow-2xs space-y-4">
-                  <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-                    <div className="flex items-center gap-2">
-                      <ShoppingBag className="w-4 h-4 text-neutral-700" />
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-neutral-700">
-                        Cesta de Produtos ({products.length})
-                      </h3>
-                    </div>
-                    <button
-                      onClick={() => setCurrentScreen('launch-quotation')}
-                      className="text-[11px] font-semibold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 cursor-pointer transition-colors"
-                    >
-                      <PlusCircle className="w-3.5 h-3.5" />
-                      <span>Nova Lista</span>
-                    </button>
-                  </div>
-
-                  <div className="space-y-2 max-h-[460px] overflow-y-auto pr-1">
-                    {products.length === 0 ? (
-                      <div className="p-6 text-center text-xs text-neutral-400 border border-dashed border-neutral-200 rounded-xl">
-                        Nenhum produto cadastrado nesta lista. Clique em "+ Nova Lista" para lançar.
-                      </div>
-                    ) : (
-                      products.map((p) => {
-                        const itemOpt = optimizedData.itemDetails.find((d) => d.productId === p.id);
-                        return (
-                          <div
-                            key={p.id}
-                            className="p-2.5 rounded-xl border border-neutral-100 hover:border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 transition-colors flex items-center justify-between text-xs"
-                          >
-                            <div>
-                              <div className="font-semibold text-neutral-900 truncate max-w-[170px]">{p.name}</div>
-                              <div className="text-[11px] text-neutral-500">
-                                Qtd: <span className="font-mono-num font-medium text-neutral-700">{p.quantity} {p.unit}</span>
-                              </div>
-                            </div>
-
-                            <div className="text-right">
-                              {itemOpt?.minPrice ? (
-                                <div>
-                                  <div className="text-xs font-bold font-mono-num text-emerald-700">
-                                    {formatCurrencyBRL(itemOpt.minPrice)}
-                                  </div>
-                                  <div className="text-[10px] text-neutral-400">menor oferta</div>
-                                </div>
-                              ) : (
-                                <span className="text-[11px] text-neutral-400">—</span>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-
-                  <div className="pt-3 border-t border-neutral-100 flex items-center justify-between text-xs">
-                    <span className="text-neutral-500">Total Otimizado:</span>
-                    <span className="font-mono-num font-bold text-sm text-neutral-900">
-                      {formatCurrencyBRL(optimizedData.totalOptimized)}
-                    </span>
-                  </div>
-                </div>
-              </div>
             </main>
           </div>
         )}
@@ -996,10 +1197,16 @@ export default function App() {
         {currentScreen === 'launch-quotation' && (
           <div className="flex-1 flex flex-col w-full">
             <LaunchQuotationView
-              onBack={() => setCurrentScreen('quotation')}
+              onBack={() => {
+                setLaunchInitialTitle('');
+                setLaunchInitialProducts([]);
+                setCurrentScreen('quotation');
+              }}
               onLaunchQuotation={handleLaunchQuotation}
-              initialProducts={products}
+              initialProducts={launchInitialProducts}
+              initialTitle={launchInitialTitle}
               vendors={vendors}
+              onOpenHistory={() => setIsHistoryModalOpen(true)}
             />
           </div>
         )}
@@ -1035,14 +1242,26 @@ export default function App() {
           onDeleteVendor={handleDeleteVendor}
         />
 
+        {/* Modal: Histórico de Listas & Cotações Anteriores */}
+        <QuotationsHistoryModal
+          isOpen={isHistoryModalOpen}
+          onClose={() => setIsHistoryModalOpen(false)}
+          historyList={quotationsHistory}
+          onReuseQuotation={handleReuseQuotation}
+          onDeleteFromHistory={handleDeleteFromHistory}
+          onSelectQuotation={handleSelectQuotation}
+        />
+
         {/* Modal: Disparo de Cotação via WhatsApp com Link Direto */}
         {dispatchQuotationData && (
           <WhatsAppDispatchModal
             isOpen={isWhatsAppModalOpen}
             onClose={() => setIsWhatsAppModalOpen(false)}
             quotation={dispatchQuotationData.quotation}
-            storeName={currentStore?.name || 'Comércio'}
+            storeName={currentStore?.name || 'A Casa do Senhor'}
+            storeWhatsApp={currentStore?.whatsapp}
             productsCount={dispatchQuotationData.productsCount}
+            products={dispatchQuotationData.products}
             vendors={dispatchQuotationData.vendors}
           />
         )}
@@ -1052,6 +1271,15 @@ export default function App() {
           isOpen={isOrdersDrawerOpen}
           onClose={() => setIsOrdersDrawerOpen(false)}
           orders={orders}
+        />
+
+        {/* Modal: Mensalidade da Loja & Pagamento Mercado Pago */}
+        <ShopkeeperBillingModal
+          isOpen={isBillingModalOpen}
+          onClose={() => setIsBillingModalOpen(false)}
+          store={currentStore}
+          invoices={invoices}
+          onPayInvoice={handleAdminMarkAsPaid}
         />
 
         {/* Order Placed Success Modal */}

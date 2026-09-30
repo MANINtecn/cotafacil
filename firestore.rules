@@ -29,33 +29,22 @@ service cloud.firestore {
 
     // Quotations collection
     match /quotations/{quotationId} {
-      allow get: if isSignedIn() && (existing().userId == request.auth.uid);
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid);
-      allow create: if isSignedIn() 
-        && isValidId(quotationId)
-        && incoming().userId == request.auth.uid
-        && incoming().title is string
-        && incoming().title.size() <= 100;
-      allow update: if isSignedIn() 
-        && existing().userId == request.auth.uid
-        && incoming().userId == existing().userId;
-      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+      allow read, write: if true;
 
       // Vendors subcollection
       match /vendors/{vendorId} {
-        allow get, list: if isSignedIn() && get(/databases/$(database)/documents/quotations/$(quotationId)).data.userId == request.auth.uid;
-        allow create, update, delete: if isSignedIn() 
-          && isValidId(vendorId)
-          && get(/databases/$(database)/documents/quotations/$(quotationId)).data.userId == request.auth.uid;
+        allow read, write: if true;
       }
 
       // Products subcollection
       match /products/{productId} {
-        allow get, list: if isSignedIn() && get(/databases/$(database)/documents/quotations/$(quotationId)).data.userId == request.auth.uid;
-        allow create, update, delete: if isSignedIn() 
-          && isValidId(productId)
-          && get(/databases/$(database)/documents/quotations/$(quotationId)).data.userId == request.auth.uid;
+        allow read, write: if true;
       }
+    }
+
+    // Public quotations for supplier link quoting
+    match /public_quotations/{quotationCode} {
+      allow read, write: if true;
     }
 
     // Purchase orders

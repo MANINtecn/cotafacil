@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Vendor, Product, Quotation } from '../types';
 import { formatCurrencyBRL } from '../utils/calculations';
 import {
@@ -35,19 +35,18 @@ export const SupplierPortalView: React.FC<Props> = ({
   onSubmitProposal,
   onBackToApp,
 }) => {
-  // Local state for supplier's input prices
-  const [pricesState, setPricesState] = useState<Record<string, string>>(() => {
-    const init: Record<string, string> = {};
-    products.forEach((p) => {
-      const val = initialPrices[p.id];
-      init[p.id] = val !== null && val !== undefined ? String(val).replace('.', ',') : '';
-    });
-    return init;
-  });
+  // Local state for supplier's input prices - ALWAYS start 100% clean and empty! Zero pre-filled prices
+  const [pricesState, setPricesState] = useState<Record<string, string>>({});
 
   const [deliveryNotes, setDeliveryNotes] = useState(vendor.deliveryDays || 'Entrega em 24h');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (vendor.deliveryDays) {
+      setDeliveryNotes(vendor.deliveryDays);
+    }
+  }, [vendor.deliveryDays]);
 
   // Calculate parsed numerical prices
   const parsedPrices: Record<string, number | null> = {};
@@ -286,8 +285,12 @@ export const SupplierPortalView: React.FC<Props> = ({
               </div>
 
               {products.length === 0 ? (
-                <div className="p-8 text-center text-xs text-neutral-400 border-2 border-dashed border-neutral-200 rounded-2xl">
-                  Nenhum produto cadastrado nesta cotação no momento.
+                <div className="p-8 text-center text-xs text-neutral-500 border-2 border-dashed border-neutral-200 rounded-2xl space-y-2">
+                  <div className="inline-block animate-spin w-5 h-5 border-2 border-neutral-300 border-t-emerald-600 rounded-full mb-1"></div>
+                  <div className="font-bold text-neutral-700">Carregando produtos da cotação...</div>
+                  <p className="text-neutral-400">
+                    Buscando os itens solicitados pela loja <strong>{storeName}</strong>.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -300,39 +303,61 @@ export const SupplierPortalView: React.FC<Props> = ({
                     return (
                       <div
                         key={product.id}
-                        className={`p-4 rounded-2xl border-2 transition-all bg-white shadow-2xs space-y-3 ${
+                        className={`p-4 sm:p-5 rounded-2xl border-2 transition-all bg-white shadow-xs space-y-3 ${
                           validPrice !== null
-                            ? 'border-neutral-900/40 bg-neutral-50/30'
-                            : 'border-neutral-200 hover:border-neutral-300'
+                            ? 'border-emerald-600 bg-emerald-50/15 shadow-sm'
+                            : 'border-neutral-300 hover:border-neutral-800'
                         }`}
                       >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
                           {/* Product Info */}
                           <div className="flex items-start gap-3 min-w-0 flex-1">
-                            <span className="font-mono-num font-bold text-xs text-neutral-400 w-6 pt-0.5 text-right shrink-0">
+                            <span className="font-mono-num font-black text-xs text-neutral-500 w-6 pt-0.5 text-right shrink-0">
                               #{index + 1}
                             </span>
-                            <div>
-                              <div className="text-sm font-bold text-neutral-900 leading-tight">
+                            <div className="space-y-2">
+                              <div className="text-base font-black text-neutral-950 leading-tight">
                                 {product.name}
                               </div>
-                              <div className="text-xs text-neutral-500 mt-1 flex items-center gap-2">
-                                <span>Quantidade solicitada:</span>
-                                <strong className="font-mono-num text-neutral-800 bg-neutral-100 px-2 py-0.5 rounded-md font-bold">
-                                  {product.quantity} {product.unit.toUpperCase()}
-                                </strong>
+                              <div className="text-xs text-neutral-600 flex items-center gap-2 flex-wrap">
+                                <span className="font-bold text-neutral-700">Quantidade solicitada:</span>
+                                <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-neutral-100 border-2 border-neutral-900 rounded-xl shadow-2xs">
+                                  <span className="text-[11px] font-bold text-neutral-600">Qtd:</span>
+                                  <strong className="font-mono-num font-black text-neutral-950 text-sm">
+                                    {product.quantity}
+                                  </strong>
+                                  <span className="font-black text-neutral-900 text-xs uppercase">
+                                    {product.unit}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
 
-                          {/* Price Input & Subtotal */}
-                          <div className="flex items-center gap-3 shrink-0">
-                            <div className="space-y-1">
-                              <label className="text-[10px] font-bold uppercase tracking-wider text-neutral-600 block text-right">
-                                Preço Unitário (R$ / {product.unit})
-                              </label>
+                          {/* Price Input & Subtotal Box with Prominent Border */}
+                          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 shrink-0">
+                            {/* Highlighted Bounded Box for Price Entry */}
+                            <div
+                              className={`p-3 rounded-2xl border-2 transition-all space-y-1.5 ${
+                                validPrice !== null
+                                  ? 'border-emerald-600 bg-emerald-50/50 ring-4 ring-emerald-500/10'
+                                  : 'border-neutral-900 bg-neutral-50/80 hover:border-emerald-600'
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <label className="text-[11px] font-black uppercase tracking-wider text-neutral-900 flex items-center gap-1.5">
+                                  <span className={`w-2 h-2 rounded-full ${validPrice !== null ? 'bg-emerald-600' : 'bg-neutral-400'}`} />
+                                  Preço Unitário (R$ / {product.unit}) *
+                                </label>
+                                {validPrice !== null && (
+                                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded">
+                                    Preenchido
+                                  </span>
+                                )}
+                              </div>
+
                               <div className="relative flex items-center">
-                                <span className="absolute left-3 text-xs font-bold text-neutral-500 pointer-events-none">
+                                <span className="absolute left-3.5 text-xs font-black text-neutral-700 pointer-events-none">
                                   R$
                                 </span>
                                 <input
@@ -341,23 +366,35 @@ export const SupplierPortalView: React.FC<Props> = ({
                                   value={priceRaw}
                                   onChange={(e) => handlePriceChange(product.id, e.target.value)}
                                   placeholder="0,00"
-                                  className="w-32 pl-9 pr-3 py-2 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-mono-num font-bold text-neutral-900 focus:outline-hidden transition-all text-right shadow-xs"
+                                  className="w-full sm:w-40 pl-10 pr-3.5 py-2.5 bg-white border-2 border-neutral-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/25 rounded-xl text-base font-mono-num font-black text-neutral-950 focus:outline-hidden transition-all text-right shadow-xs placeholder:text-neutral-300"
                                 />
+                              </div>
+
+                              <div className="text-right text-[11px] font-medium">
+                                {validPrice !== null ? (
+                                  <span className="text-emerald-800 font-bold">
+                                    Valor unitário salvo
+                                  </span>
+                                ) : (
+                                  <span className="text-neutral-400">
+                                    Campo em branco = sem estoque
+                                  </span>
+                                )}
                               </div>
                             </div>
 
-                            {/* Subtotal Display */}
-                            <div className="w-28 text-right space-y-1">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400 block">
-                                Subtotal
+                            {/* Subtotal Display Box */}
+                            <div className="p-3 rounded-2xl border-2 border-neutral-200 bg-neutral-50/60 min-w-[130px] text-right space-y-1">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-neutral-500 block">
+                                Subtotal ({product.quantity} {product.unit})
                               </span>
-                              <div className="font-mono-num font-bold text-xs text-neutral-900 py-2">
+                              <div className="font-mono-num font-black text-base text-neutral-950">
                                 {subtotal !== null ? (
-                                  <span className="text-emerald-700 font-extrabold">
+                                  <span className="text-emerald-700 font-black">
                                     {formatCurrencyBRL(subtotal)}
                                   </span>
                                 ) : (
-                                  <span className="text-neutral-400 font-normal">—</span>
+                                  <span className="text-neutral-400 font-normal text-sm">—</span>
                                 )}
                               </div>
                             </div>

@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
-import { Vendor, Quotation } from '../types';
+import { Vendor, Quotation, Product } from '../types';
 import { MessageCircle, Check, Copy, ExternalLink, Send, ArrowRight, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { buildSupplierQuotationLink } from '../utils/storeManager';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   quotation: Quotation;
   storeName: string;
+  storeWhatsApp?: string;
   productsCount: number;
+  products?: Product[];
   vendors: Vendor[];
 }
 
@@ -16,7 +19,9 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
   onClose,
   quotation,
   storeName,
+  storeWhatsApp,
   productsCount,
+  products = [],
   vendors,
 }) => {
   const [openedVendors, setOpenedVendors] = useState<string[]>([]);
@@ -26,9 +31,7 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   const getVendorLink = (vendor: Vendor) => {
-    const origin = window.location.origin;
-    const path = window.location.pathname;
-    return `${origin}${path}?role=fornecedor&v=${vendor.id}&cot=${quotation.code || quotation.id}`;
+    return buildSupplierQuotationLink(quotation, vendor, products, storeName, storeWhatsApp);
   };
 
   const getDeadlineReadable = () => {
@@ -58,7 +61,7 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
       `📦 *Total de itens:* ${productsCount} produtos\n` +
       `⏰ *Prazo final para resposta:* ${deadline}\n\n` +
       `Acesse o link direto abaixo para preencher os seus preços:\n` +
-      `👉 ${link}\n\n` +
+      `${link}\n\n` +
       `Aguardamos sua melhor proposta. Obrigado!`
     );
   };
@@ -71,6 +74,15 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
 
     setOpenedVendors((prev) => (prev.includes(vendor.id) ? prev : [...prev, vendor.id]));
     window.open(waUrl, '_blank');
+  };
+
+  const handleDispatchAll = () => {
+    // Sequentially open WhatsApp for all vendors so popups are not blocked
+    vendors.forEach((vendor, idx) => {
+      setTimeout(() => {
+        handleOpenWhatsApp(vendor);
+      }, idx * 600);
+    });
   };
 
   const handleCopyLink = async (vendor: Vendor) => {
@@ -143,6 +155,28 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
           <p className="text-[11px] text-neutral-500 leading-tight">
             Cada link contém o identificador exclusivo do fornecedor para ele preencher os preços unitários sem precisar de login.
           </p>
+        </div>
+
+        {/* Quick Action: Send to All Suppliers */}
+        <div className="bg-emerald-50 rounded-2xl border-2 border-emerald-300 p-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-2xs">
+          <div>
+            <div className="text-xs font-black text-emerald-950 flex items-center gap-1.5">
+              <MessageCircle className="w-4 h-4 text-emerald-700" />
+              <span>Disparo Geral de WhatsApp</span>
+            </div>
+            <p className="text-[11px] text-emerald-800 mt-0.5">
+              Acione todos os <strong>{vendors.length} fornecedores</strong> de uma só vez ou clique em cada distribuidor individualmente abaixo.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleDispatchAll}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-black transition-all shadow-sm cursor-pointer shrink-0"
+          >
+            <Send className="w-4 h-4" />
+            <span>Disparar para Todos ({vendors.length})</span>
+          </button>
         </div>
 
         {/* Vendors List with 1-click WhatsApp buttons */}

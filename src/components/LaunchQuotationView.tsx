@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Product, Vendor } from '../types';
 import {
   ArrowLeft,
@@ -7,7 +7,8 @@ import {
   Calendar,
   Send,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 
 interface Props {
@@ -21,19 +22,32 @@ interface Props {
     deadlineAt?: string
   ) => void;
   initialProducts: Product[];
+  initialTitle?: string;
   vendors: Vendor[];
+  onOpenHistory?: () => void;
 }
 
 export const LaunchQuotationView: React.FC<Props> = ({
   onBack,
   onLaunchQuotation,
   initialProducts,
+  initialTitle = '',
   vendors,
+  onOpenHistory,
 }) => {
   // Empty values by default - no hardcoded/mock text
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(initialTitle);
   const [notes, setNotes] = useState('');
   const [productsList, setProductsList] = useState<Product[]>(initialProducts);
+
+  // Sync state if initialProducts or initialTitle changes (e.g. from reusing a list)
+  useEffect(() => {
+    setProductsList(initialProducts || []);
+  }, [initialProducts]);
+
+  useEffect(() => {
+    setTitle(initialTitle || '');
+  }, [initialTitle]);
 
   // Helper to format default deadline: 2 days ahead at 18:00
   const getDefaultDeadline = () => {
@@ -210,6 +224,37 @@ export const LaunchQuotationView: React.FC<Props> = ({
           </div>
         )}
 
+        {/* Banner para Reutilizar Lista Anterior */}
+        {onOpenHistory && (
+          <div className="p-4 rounded-2xl bg-neutral-900 text-white flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-md border border-neutral-800">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-500 text-neutral-950 flex items-center justify-center font-bold shrink-0">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-xs font-bold text-white flex items-center gap-2">
+                  <span>Deseja reaproveitar uma lista anterior?</span>
+                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    Histórico
+                  </span>
+                </h3>
+                <p className="text-[11px] text-neutral-400 mt-0.5">
+                  Recupere os produtos de uma compra anterior com 1 clique e edite apenas as quantidades e itens necessários.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={onOpenHistory}
+              className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-neutral-950 font-bold text-xs flex items-center justify-center gap-1.5 cursor-pointer shadow-xs transition-colors shrink-0"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reutilizar do Histórico</span>
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: Quotation details + Product List */}
           <div className="lg:col-span-8 space-y-5">
@@ -225,7 +270,7 @@ export const LaunchQuotationView: React.FC<Props> = ({
               <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
                 {/* Title */}
                 <div className="sm:col-span-7 space-y-1">
-                  <label className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
+                  <label className="text-[11px] font-extrabold text-neutral-800 uppercase tracking-wide">
                     Nome da Lista / Título da Compra *
                   </label>
                   <input
@@ -234,15 +279,15 @@ export const LaunchQuotationView: React.FC<Props> = ({
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="Digite o título da lista de compras"
                     required
-                    className="w-full px-3.5 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs text-neutral-900 font-semibold placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs"
+                    className="w-full px-3.5 py-2.5 bg-white border-2 border-neutral-700 hover:border-neutral-900 focus:border-neutral-950 rounded-xl text-xs text-neutral-950 font-bold placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs"
                   />
                 </div>
 
                 {/* Calendar / Datetime picker */}
                 <div className="sm:col-span-5 space-y-1">
-                  <label className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide flex items-center justify-between">
+                  <label className="text-[11px] font-extrabold text-neutral-800 uppercase tracking-wide flex items-center justify-between">
                     <span>Encerramento da Cotação *</span>
-                    <Calendar className="w-3.5 h-3.5 text-neutral-500" />
+                    <Calendar className="w-3.5 h-3.5 text-neutral-700" />
                   </label>
                   <input
                     type="datetime-local"
@@ -250,17 +295,17 @@ export const LaunchQuotationView: React.FC<Props> = ({
                     value={deadlineDateTime}
                     onChange={(e) => setDeadlineDateTime(e.target.value)}
                     required
-                    className="w-full px-3 py-2 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs text-neutral-900 font-semibold focus:outline-hidden transition-all cursor-pointer shadow-xs"
+                    className="w-full px-3 py-2 bg-white border-2 border-neutral-700 hover:border-neutral-900 focus:border-neutral-950 rounded-xl text-xs text-neutral-950 font-bold focus:outline-hidden transition-all cursor-pointer shadow-xs"
                   />
                 </div>
               </div>
 
               {deadlineDateTime && (
-                <div className="p-2.5 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-600 flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-neutral-500 shrink-0" />
+                <div className="p-2.5 bg-neutral-50 rounded-xl border-2 border-neutral-300 text-xs text-neutral-700 flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-neutral-700 shrink-0" />
                   <span>
                     A cotação receberá propostas até:{' '}
-                    <strong className="text-neutral-900 font-bold capitalize">
+                    <strong className="text-neutral-950 font-extrabold capitalize">
                       {formatDeadlineReadable(deadlineDateTime)}
                     </strong>
                   </span>
@@ -268,7 +313,7 @@ export const LaunchQuotationView: React.FC<Props> = ({
               )}
 
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
+                <label className="text-[11px] font-extrabold text-neutral-800 uppercase tracking-wide">
                   Instruções ou Observações para os Fornecedores (opcional)
                 </label>
                 <input
@@ -276,24 +321,44 @@ export const LaunchQuotationView: React.FC<Props> = ({
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Observações ou instruções para os fornecedores"
-                  className="w-full px-3.5 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs text-neutral-900 placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs"
+                  className="w-full px-3.5 py-2.5 bg-white border-2 border-neutral-700 hover:border-neutral-900 focus:border-neutral-950 rounded-xl text-xs text-neutral-950 placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs"
                 />
               </div>
             </div>
 
             {/* Box 2: Produtos da Cotação */}
             <div className="bg-white rounded-2xl border-2 border-neutral-200/90 p-5 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
-                  2. Produtos da Cotação ({productsList.length} itens)
-                </h2>
-                <span className="text-[11px] text-neutral-500">Adicione os itens manualmente</span>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-neutral-100">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
+                    2. Produtos da Cotação ({productsList.length} itens)
+                  </h2>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {onOpenHistory && (
+                    <button
+                      type="button"
+                      onClick={onOpenHistory}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-neutral-800 hover:text-neutral-950 py-1.5 px-3 rounded-xl border-2 border-neutral-300 hover:border-neutral-900 bg-neutral-50 hover:bg-neutral-100 transition-all cursor-pointer shadow-2xs"
+                      title="Carregar itens de uma lista anterior"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Reutilizar Lista Anterior</span>
+                    </button>
+                  )}
+                  <span className="text-[11px] text-neutral-500 hidden md:inline">Adicione os itens manualmente</span>
+                </div>
               </div>
 
-              {/* Add New Product Form - Clean without category */}
-              <div className="p-4 rounded-xl bg-neutral-50 border border-neutral-200 space-y-2">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-neutral-700">
-                  Adicionar Item
+              {/* Add New Product Form - Clean with prominent borders */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-neutral-50/90 border-2 border-neutral-400 space-y-3 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="text-xs font-black uppercase tracking-wider text-neutral-900 flex items-center gap-1.5">
+                    <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Adicionar Novo Produto à Lista</span>
+                  </div>
+                  <span className="text-[10px] text-neutral-500">Pressione Enter para inserir</span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
@@ -309,8 +374,8 @@ export const LaunchQuotationView: React.FC<Props> = ({
                           handleAddProduct();
                         }
                       }}
-                      placeholder="Nome do produto"
-                      className="w-full px-3.5 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-semibold text-neutral-900 placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs"
+                      placeholder="Nome do produto (ex: Tê PVC 25mm)"
+                      className="w-full px-3.5 py-2.5 bg-white border-2 border-neutral-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 rounded-xl text-xs font-bold text-neutral-950 placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs"
                     />
                   </div>
 
@@ -326,8 +391,8 @@ export const LaunchQuotationView: React.FC<Props> = ({
                           handleAddProduct();
                         }
                       }}
-                      placeholder="Qtd"
-                      className="w-full px-3 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-mono-num font-bold text-neutral-900 focus:outline-hidden transition-all shadow-xs"
+                      placeholder="Qtd (ex: 10)"
+                      className="w-full px-3 py-2.5 bg-white border-2 border-neutral-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 rounded-xl text-xs font-mono-num font-black text-neutral-950 focus:outline-hidden transition-all shadow-xs text-center"
                     />
                   </div>
 
@@ -336,7 +401,7 @@ export const LaunchQuotationView: React.FC<Props> = ({
                     <select
                       value={newItemUnit}
                       onChange={(e) => setNewItemUnit(e.target.value)}
-                      className="w-full px-2.5 py-2.5 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-bold text-neutral-800 focus:outline-hidden transition-all cursor-pointer shadow-xs uppercase"
+                      className="w-full px-2.5 py-2.5 bg-white border-2 border-neutral-900 focus:border-emerald-600 focus:ring-4 focus:ring-emerald-500/20 rounded-xl text-xs font-black text-neutral-950 focus:outline-hidden transition-all cursor-pointer shadow-xs uppercase"
                     >
                       <option value="un">UN (Unidade)</option>
                       <option value="cx">CX (Caixa)</option>
@@ -354,9 +419,9 @@ export const LaunchQuotationView: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={handleAddProduct}
-                      className="w-full py-2.5 px-3 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center justify-center gap-1.5"
+                      className="w-full py-2.5 px-3 bg-neutral-950 hover:bg-neutral-800 active:scale-[0.98] text-white rounded-xl text-xs font-black transition-all shadow-sm border-2 border-black cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      <Plus className="w-4 h-4" />
+                      <Plus className="w-4 h-4 text-emerald-400" />
                       <span>Inserir</span>
                     </button>
                   </div>
@@ -366,9 +431,9 @@ export const LaunchQuotationView: React.FC<Props> = ({
               {/* Products Vertical List */}
               <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
                 {productsList.length === 0 ? (
-                  <div className="p-8 text-center text-xs text-neutral-400 border-2 border-dashed border-neutral-200 rounded-xl space-y-1">
-                    <div className="font-semibold text-neutral-600">Nenhum produto na lista ainda</div>
-                    <p className="text-[11px] text-neutral-400">
+                  <div className="p-8 text-center text-xs text-neutral-400 border-2 border-dashed border-neutral-300 rounded-xl space-y-1">
+                    <div className="font-bold text-neutral-700">Nenhum produto na lista ainda</div>
+                    <p className="text-[11px] text-neutral-500">
                       Digite o nome do produto e a quantidade no campo acima para adicionar itens à cotação.
                     </p>
                   </div>
@@ -376,7 +441,7 @@ export const LaunchQuotationView: React.FC<Props> = ({
                   productsList.map((product, index) => (
                     <div
                       key={product.id}
-                      className="p-3.5 rounded-xl border-2 border-neutral-200 hover:border-neutral-300 bg-white flex items-center justify-between gap-3 shadow-2xs text-xs transition-colors"
+                      className="p-3.5 rounded-xl border-2 border-neutral-300 hover:border-neutral-700 bg-white flex items-center justify-between gap-3 shadow-2xs text-xs transition-colors"
                     >
                       <div className="flex items-center gap-3 min-w-0 flex-1">
                         <span className="font-mono-num font-bold text-neutral-400 text-xs w-6 text-right shrink-0">
@@ -384,22 +449,22 @@ export const LaunchQuotationView: React.FC<Props> = ({
                         </span>
 
                         <div className="min-w-0">
-                          <div className="font-bold text-neutral-900 truncate text-xs">
+                          <div className="font-extrabold text-neutral-950 truncate text-xs">
                             {product.name}
                           </div>
                         </div>
                       </div>
 
                       <div className="flex items-center gap-3 shrink-0">
-                        <div className="flex items-center gap-1.5 bg-neutral-50 px-2 py-1 rounded-lg border border-neutral-200">
-                          <span className="text-neutral-500 text-[11px]">Qtd:</span>
+                        <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-xl border-2 border-neutral-800 shadow-2xs">
+                          <span className="text-neutral-700 font-extrabold text-xs">Qtd:</span>
                           <input
                             type="text"
                             defaultValue={product.quantity}
                             onBlur={(e) => handleUpdateProductQty(product.id, e.target.value)}
-                            className="w-14 px-1 py-0.5 text-center font-mono-num font-bold text-neutral-900 bg-white border border-neutral-300 rounded text-xs focus:outline-hidden focus:border-neutral-900"
+                            className="w-16 px-1.5 py-1 text-center font-mono-num font-extrabold text-neutral-950 bg-white border-2 border-neutral-900 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-500/20 rounded-lg text-xs focus:outline-hidden transition-all shadow-xs"
                           />
-                          <span className="text-neutral-800 font-bold uppercase text-[11px] w-7">
+                          <span className="text-neutral-950 font-black uppercase text-xs w-7">
                             {product.unit}
                           </span>
                         </div>

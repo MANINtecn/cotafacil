@@ -3,6 +3,8 @@ import { Eye, EyeOff, Lock, Mail, Store, Truck, ArrowRight, CheckCircle2, Trendi
 import { signInWithGoogle } from '../firebase';
 import { User } from 'firebase/auth';
 import { isSuperAdminEmail } from '../utils/storeManager';
+import { CotaFacilLogo } from './CotaFacilLogo';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface Props {
   onLoginAsLojista: (slug?: string) => void;
@@ -23,7 +25,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'lojista' | 'fornecedor'>('lojista');
   const [showPassword, setShowPassword] = useState(false);
-  const [emailOrSlug, setEmailOrSlug] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [vendorCode, setVendorCode] = useState('');
   const [vendorPassword, setVendorPassword] = useState('');
@@ -53,7 +55,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
 
   const handleSubmitLojista = (e: React.FormEvent) => {
     e.preventDefault();
-    onLoginAsLojista(emailOrSlug);
+    onLoginAsLojista(email);
   };
 
   const handleSubmitVendor = (e: React.FormEvent) => {
@@ -110,15 +112,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
         <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 space-y-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white text-neutral-950 flex items-center justify-center font-extrabold text-lg font-mono-num shadow-sm">
-              C•
-            </div>
-            <div>
-              <span className="font-bold text-lg tracking-tight">CotaFácil B2B</span>
-              <span className="block text-[11px] text-neutral-400">Enterprise Procurement Suite</span>
-            </div>
-          </div>
+          <CotaFacilLogo size="lg" theme="dark" />
 
           <div className="space-y-4 max-w-md pt-6">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-xs text-neutral-300 font-medium">
@@ -165,8 +159,8 @@ export const UnifiedLoginView: React.FC<Props> = ({
         <div className="w-full space-y-6">
           {/* Brand header on mobile */}
           <div className="text-center space-y-2">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-neutral-900 text-white shadow-xs border border-neutral-800 lg:hidden">
-              <span className="font-extrabold text-xl tracking-tighter font-mono-num">C•</span>
+            <div className="flex justify-center lg:hidden">
+              <CotaFacilLogo size="md" />
             </div>
             <div>
               <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-neutral-900">
@@ -240,7 +234,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-neutral-200" />
                 <span className="text-[10px] font-bold uppercase tracking-wider text-neutral-400">
-                  ou acesse com e-mail / slug
+                  ou acesse com seu e-mail
                 </span>
                 <div className="flex-1 h-px bg-neutral-200" />
               </div>
@@ -248,22 +242,19 @@ export const UnifiedLoginView: React.FC<Props> = ({
               <form onSubmit={handleSubmitLojista} className="space-y-4">
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-neutral-700 tracking-wide uppercase">
-                    E-mail ou Slug da Loja
+                    E-mail
                   </label>
                   <div className="relative">
                     <Mail className="w-4 h-4 text-neutral-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                     <input
-                      type="text"
-                      value={emailOrSlug}
-                      onChange={(e) => setEmailOrSlug(e.target.value)}
-                      placeholder="Digite o e-mail ou slug da sua loja"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="seu@email.com"
                       required
                       className="w-full pl-10 pr-3.5 py-3 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 rounded-xl text-xs text-neutral-900 placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs"
                     />
                   </div>
-                  <p className="text-[10px] text-neutral-400">
-                    Acesse via seu slug personalizado ou e-mail de cadastro.
-                  </p>
                 </div>
 
                 <div className="space-y-1">
@@ -381,8 +372,9 @@ export const UnifiedLoginView: React.FC<Props> = ({
             </form>
           )}
 
-          {/* Footer: Discrete Super Admin link */}
-          <div className="pt-6 border-t border-neutral-100 text-center">
+          {/* Footer: Discrete Super Admin link & PWA Install */}
+          <div className="pt-6 border-t border-neutral-100 flex flex-col items-center gap-2.5 text-center">
+            <PWAInstallButton variant="pill" />
             <button
               type="button"
               onClick={onOpenSuperAdmin}

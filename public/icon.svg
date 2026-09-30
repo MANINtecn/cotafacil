@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0a0a0a" />
+      <stop offset="50%" stop-color="#171717" />
+      <stop offset="100%" stop-color="#050505" />
+    </linearGradient>
+    <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399" />
+      <stop offset="100%" stop-color="#059669" />
+    </linearGradient>
+    <linearGradient id="whiteGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#D1D5DB" />
+    </linearGradient>
+    <radialGradient id="ambientGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.35" />
+      <stop offset="100%" stop-color="#10B981" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+
+  <!-- Background Base with rounded squircle -->
+  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <rect width="512" height="512" rx="112" fill="none" stroke="#262626" stroke-width="8" />
+
+  <!-- Ambient Glow -->
+  <circle cx="256" cy="256" r="200" fill="url(#ambientGlow)" />
+
+  <!-- Hexagonal Shield Outer Contour -->
+  <polygon
+    points="256,68 440,166 440,362 256,460 72,362 72,166"
+    fill="none"
+    stroke="url(#emeraldGrad)"
+    stroke-width="20"
+    stroke-linejoin="round"
+    opacity="0.75"
+  />
+
+  <!-- Left Ribbon (Emerald) -->
+  <path
+    d="M 236 128 L 138 180 L 138 348 L 236 400 L 236 304 L 196 284 L 196 228 L 236 208 Z"
+    fill="url(#emeraldGrad)"
+  />
+
+  <!-- Right Ribbon (White) -->
+  <path
+    d="M 276 128 L 374 180 L 374 274 L 316 240 L 316 208 L 276 188 Z"
+    fill="url(#whiteGrad)"
+  />
+
+  <!-- Central Dynamic Vector -->
+  <path
+    d="M 236 264 L 374 338 L 306 380 L 276 324 L 236 264 Z"
+    fill="#10B981"
+  />
+
+  <!-- Golden Core Diamond -->
+  <polygon
+    points="256,226 294,264 256,302 218,264"
+    fill="#FBBF24"
+  />
+</svg>

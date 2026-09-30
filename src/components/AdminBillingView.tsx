@@ -4,6 +4,7 @@ import { formatCurrencyBRL } from '../utils/calculations';
 import {
   AlertTriangle,
   ArrowLeft,
+  ArrowRight,
   Copy,
   Check,
   Ban,
@@ -23,8 +24,12 @@ import {
   ExternalLink,
   ShieldCheck,
   Store,
-  DollarSign
+  DollarSign,
+  Settings,
+  SlidersHorizontal
 } from 'lucide-react';
+import { AdminSettingsView } from './AdminSettingsView';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface Props {
   invoices: BillingInvoice[];
@@ -257,9 +262,14 @@ export const AdminBillingView: React.FC<Props> = ({
                   : 'text-neutral-600 hover:text-neutral-900'
               }`}
             >
-              <KeyRound className="w-3.5 h-3.5" />
-              <span>Segurança</span>
+              <Settings className="w-3.5 h-3.5" />
+              <span>Configurações</span>
             </button>
+          </div>
+
+          {/* Super Admin Top Right PWA Button */}
+          <div className="hidden md:flex items-center">
+            <PWAInstallButton variant="compact" />
           </div>
         </div>
       </header>
@@ -303,8 +313,8 @@ export const AdminBillingView: React.FC<Props> = ({
                 onClick={() => setIsNewStoreModalOpen(true)}
                 className="py-2.5 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
               >
-                <Plus className="w-4 h-4 text-amber-400" />
-                <span>+ Cadastrar Novo Lojista</span>
+                <Plus className="w-4 h-4 text-emerald-400" />
+                <span>Cadastrar Novo Lojista</span>
               </button>
             </div>
 
@@ -324,7 +334,7 @@ export const AdminBillingView: React.FC<Props> = ({
                   onClick={() => setIsNewStoreModalOpen(true)}
                   className="inline-flex items-center gap-2 py-2 px-4 rounded-xl bg-neutral-900 text-white text-xs font-bold cursor-pointer"
                 >
-                  <Plus className="w-4 h-4 text-amber-400" />
+                  <Plus className="w-4 h-4 text-emerald-400" />
                   <span>Cadastrar Primeiro Lojista</span>
                 </button>
               </div>
@@ -353,14 +363,17 @@ export const AdminBillingView: React.FC<Props> = ({
                             {store.planName}
                           </span>
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                            className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 ${
                               store.status === 'Ativo'
-                                ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                ? 'bg-emerald-600 text-white border-2 border-emerald-400 shadow-sm ring-1 ring-emerald-500/50'
                                 : store.status === 'Teste Grátis'
-                                ? 'bg-sky-50 text-sky-800 border border-sky-200'
-                                : 'bg-rose-50 text-rose-800 border border-rose-200'
+                                ? 'bg-sky-100 text-sky-900 border border-sky-300 font-bold'
+                                : 'bg-rose-100 text-rose-900 border border-rose-300 font-bold'
                             }`}
                           >
+                            {store.status === 'Ativo' && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse" />
+                            )}
                             {store.status}
                           </span>
                         </div>
@@ -385,10 +398,11 @@ export const AdminBillingView: React.FC<Props> = ({
                         {onSelectStoreToView && (
                           <button
                             onClick={() => onSelectStoreToView(store)}
-                            className="px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-semibold cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-white hover:bg-emerald-600 hover:text-white text-emerald-950 text-xs font-black border-2 border-emerald-600 shadow-md ring-2 ring-emerald-500/25 hover:ring-emerald-600/50 transition-all cursor-pointer flex items-center gap-1.5 active:scale-[0.98]"
                             title="Entrar na visão deste lojista para auditar a cotação"
                           >
-                            Acessar Painel
+                            <span>Acessar Painel</span>
+                            <ArrowRight className="w-3.5 h-3.5 text-emerald-600 hover:text-white" />
                           </button>
                         )}
 
@@ -686,91 +700,15 @@ export const AdminBillingView: React.FC<Props> = ({
         )}
 
         {/* ======================================================== */}
-        {/* ABA 3: SEGURANÇA E CONFIGURAÇÕES DO SISTEMA              */}
+        {/* ABA 3: CONFIGURAÇÕES DO SISTEMA (LOGO, MERCADO PAGO, PWA) */}
         {/* ======================================================== */}
         {activeAdminTab === 'settings' && (
-          <div className="max-w-2xl mx-auto space-y-6">
-            {/* Alteração de Senha */}
-            <div className="bg-white rounded-3xl border border-neutral-200 p-6 shadow-2xs space-y-4">
-              <div className="flex items-center gap-2 pb-3 border-b border-neutral-100">
-                <KeyRound className="w-5 h-5 text-neutral-700" />
-                <h3 className="text-sm font-bold text-neutral-900">
-                  Alterar Senha do Super Admin
-                </h3>
-              </div>
-
-              <form onSubmit={handleSaveNewPassword} className="space-y-3">
-                <div className="space-y-1">
-                  <label className="text-[11px] font-semibold text-neutral-700 uppercase">
-                    Nova Senha de Acesso
-                  </label>
-                  <input
-                    type="password"
-                    value={newAdminPassInput}
-                    onChange={(e) => setNewAdminPassInput(e.target.value)}
-                    placeholder="Digite a nova senha segura..."
-                    required
-                    className="w-full px-3.5 py-2.5 bg-neutral-50 border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-hidden focus:bg-white focus:border-neutral-900"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="py-2.5 px-4 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white text-xs font-bold transition-all cursor-pointer"
-                >
-                  Salvar Nova Senha
-                </button>
-
-                {passChangeSuccess && (
-                  <div className="p-2.5 bg-emerald-50 text-emerald-800 text-xs rounded-xl border border-emerald-200 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                    <span>Senha atualizada com sucesso no sistema.</span>
-                  </div>
-                )}
-              </form>
-            </div>
-
-            {/* Gerenciamento de Base de Dados (Teste Real Zerado) */}
-            <div className="bg-white rounded-3xl border border-neutral-200 p-6 shadow-2xs space-y-4">
-              <div className="flex items-center gap-2 pb-3 border-b border-neutral-100">
-                <RotateCcw className="w-5 h-5 text-neutral-700" />
-                <h3 className="text-sm font-bold text-neutral-900">
-                  Gerenciamento da Base de Dados
-                </h3>
-              </div>
-
-              <div className="p-4 rounded-2xl bg-neutral-50 border border-neutral-200 space-y-2 text-xs text-neutral-600">
-                <p>
-                  Para realizar um <strong>teste real de produção</strong>, você pode zerar os dados a qualquer momento e cadastrar suas próprias lojas, listas e fornecedores.
-                </p>
-                <div className="flex gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirm('Tem certeza que deseja zerar os dados para iniciar seus testes reais do zero?')) {
-                        onClearData();
-                        showToast('Base de dados zerada com sucesso!');
-                      }
-                    }}
-                    className="px-3 py-2 rounded-xl bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100 text-xs font-bold cursor-pointer"
-                  >
-                    Zerar Dados (Base Limpa para Produção)
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onLoadDemoData();
-                      showToast('Dados de demonstração carregados com sucesso!');
-                    }}
-                    className="px-3 py-2 rounded-xl bg-neutral-100 text-neutral-800 hover:bg-neutral-200 border border-neutral-200 text-xs font-semibold cursor-pointer"
-                  >
-                    Carregar Dados de Exemplo
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <AdminSettingsView
+            onClearData={onClearData}
+            onLoadDemoData={onLoadDemoData}
+            onChangeAdminPassword={onChangeAdminPassword}
+            showToast={showToast}
+          />
         )}
       </main>
 

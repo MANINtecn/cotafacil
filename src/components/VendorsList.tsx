@@ -37,7 +37,7 @@ export const VendorsList: React.FC<Props> = ({
             <button
               key={vendor.id}
               onClick={() => onSelectVendor(vendor.id)}
-              className="w-full text-left p-4 rounded-2xl border border-neutral-200/90 bg-white hover:bg-neutral-50/70 hover:border-neutral-300 transition-all active:scale-[0.99] cursor-pointer group shadow-2xs flex flex-col justify-between gap-3 relative"
+              className="w-full text-left p-4 rounded-2xl border-2 border-neutral-300 bg-white hover:bg-neutral-50/70 hover:border-neutral-900 transition-all active:scale-[0.99] cursor-pointer group shadow-xs flex flex-col justify-between gap-3 relative"
             >
               <div className="space-y-2 w-full">
                 {/* Header: Company + Has Viewed Badge */}

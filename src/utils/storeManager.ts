@@ -153,11 +153,27 @@ export function createInvoiceForStore(store: ShopkeeperStore): BillingInvoice {
 }
 
 // Vendors per store management
+const MOCK_VENDOR_COMPANIES = [
+  'Distribuidora Bom Preço',
+  'Hortifrúti Ceasa Sul',
+  'AgroComercial Da Terra',
+  'Verduras Express Ltda'
+];
+
 export function getStoredVendors(storeSlug?: string): Vendor[] {
   try {
     const key = storeSlug ? `${VENDORS_STORAGE_KEY}_${storeSlug}` : VENDORS_STORAGE_KEY;
     const raw = localStorage.getItem(key);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const list: Vendor[] = JSON.parse(raw);
+      const filtered = list.filter(
+        (v) => !MOCK_VENDOR_COMPANIES.includes(v.company) && !['v1', 'v2', 'v3', 'v4'].includes(v.id)
+      );
+      if (filtered.length !== list.length) {
+        localStorage.setItem(key, JSON.stringify(filtered));
+      }
+      return filtered;
+    }
   } catch (e) {
     console.error(e);
   }
@@ -259,6 +275,202 @@ export function getStoredVendorPrices(): Record<string, Record<string, number | 
     console.error('Error reading vendor prices:', e);
   }
   return {};
+}
+
+// ==========================================
+// QUOTATIONS HISTORY MANAGEMENT & REUSE
+// ==========================================
+const QUOTATIONS_HISTORY_KEY = 'cotafacil_quotations_history';
+
+export function getQuotationsHistory(storeSlug?: string): QuotationBundle[] {
+  try {
+    const key = storeSlug ? `${QUOTATIONS_HISTORY_KEY}_${storeSlug}` : QUOTATIONS_HISTORY_KEY;
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+
+    // Fallback: check global history
+    if (storeSlug) {
+      const globalRaw = localStorage.getItem(QUOTATIONS_HISTORY_KEY);
+      if (globalRaw) {
+        const list: QuotationBundle[] = JSON.parse(globalRaw);
+        return list.filter((b) => b.storeSlug === storeSlug);
+      }
+    }
+  } catch (e) {
+    console.error('Error reading quotations history:', e);
+  }
+  return [];
+}
+
+export function saveQuotationToHistory(bundle: QuotationBundle, storeSlug?: string): void {
+  try {
+    const slug = storeSlug || bundle.storeSlug || 'default';
+    const key = `${QUOTATIONS_HISTORY_KEY}_${slug}`;
+    const existing = getQuotationsHistory(slug);
+
+    // Filter out if duplicate code exists, and prepend newly saved
+    const updated = [bundle, ...existing.filter((b) => b.quotation.code !== bundle.quotation.code)];
+    localStorage.setItem(key, JSON.stringify(updated));
+
+    // Also update global history
+    try {
+      const globalRaw = localStorage.getItem(QUOTATIONS_HISTORY_KEY);
+      const globalList: QuotationBundle[] = globalRaw ? JSON.parse(globalRaw) : [];
+      const updatedGlobal = [bundle, ...globalList.filter((b) => b.quotation.code !== bundle.quotation.code)];
+      localStorage.setItem(QUOTATIONS_HISTORY_KEY, JSON.stringify(updatedGlobal));
+    } catch {
+      // Ignore
+    }
+  } catch (e) {
+    console.error('Error saving quotation to history:', e);
+  }
+}
+
+export function deleteQuotationFromHistory(code: string, storeSlug?: string): QuotationBundle[] {
+  try {
+    const slug = storeSlug || 'default';
+    const key = `${QUOTATIONS_HISTORY_KEY}_${slug}`;
+    const existing = getQuotationsHistory(slug);
+    const updated = existing.filter((b) => b.quotation.code !== code);
+    localStorage.setItem(key, JSON.stringify(updated));
+
+    // Also remove from global history
+    try {
+      const globalRaw = localStorage.getItem(QUOTATIONS_HISTORY_KEY);
+      if (globalRaw) {
+        const globalList: QuotationBundle[] = JSON.parse(globalRaw);
+        const updatedGlobal = globalList.filter((b) => b.quotation.code !== code);
+        localStorage.setItem(QUOTATIONS_HISTORY_KEY, JSON.stringify(updatedGlobal));
+      }
+    } catch {
+      // Ignore
+    }
+
+    // If active bundle is this quotation, clear or replace it
+    try {
+      const activeRaw = localStorage.getItem(ACTIVE_QUOTATION_KEY);
+      if (activeRaw) {
+        const activeBundle: QuotationBundle = JSON.parse(activeRaw);
+        if (activeBundle.quotation?.code === code) {
+          if (updated.length > 0) {
+            localStorage.setItem(ACTIVE_QUOTATION_KEY, JSON.stringify(updated[0]));
+          } else {
+            localStorage.removeItem(ACTIVE_QUOTATION_KEY);
+          }
+        }
+      }
+    } catch {
+      // Ignore
+    }
+
+    return updated;
+  } catch (e) {
+    console.error('Error deleting quotation from history:', e);
+    return [];
+  }
+}
+
+// ==========================================
+// BULLETPROOF SELF-CONTAINED QUOTING LINK ENCODER
+// ==========================================
+export interface QuotingLinkPayload {
+  cot: string;      // Quotation code, e.g. 'COT-8942'
+  t: string;        // Quotation title
+  s: string;        // Store name, e.g. 'A Casa do Senhor'
+  sw?: string;      // Store WhatsApp
+  d?: string;       // Deadline ISO
+  v: string;        // Vendor ID
+  vn: string;       // Vendor contact name
+  vc: string;       // Vendor company / distributor name
+  vm: number;       // Vendor min order value
+  vp?: string;      // Vendor phone
+  vd?: string;      // Vendor delivery days
+  p: Array<{ id?: string; n: string; q: number; u: string }>; // Products
+}
+
+export function encodeQuotationPayload(payload: QuotingLinkPayload): string {
+  try {
+    const json = JSON.stringify(payload);
+    // Modern UTF-8 safe base64 encoding
+    const bytes = new TextEncoder().encode(json);
+    let binary = '';
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    const b64 = btoa(binary);
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch (e) {
+    console.error('Error encoding quotation payload:', e);
+    return '';
+  }
+}
+
+export function decodeQuotationPayload(str: string): QuotingLinkPayload | null {
+  try {
+    if (!str) return null;
+    let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    const json = new TextDecoder().decode(bytes);
+    return JSON.parse(json);
+  } catch (e) {
+    console.error('Error decoding quotation payload:', e);
+    return null;
+  }
+}
+
+/**
+ * Builds a 100% resilient quotation link for suppliers.
+ * Incorporates explicit query parameters (cot, v, vn, vc, vm, vd, s, sw)
+ * PLUS the self-contained encoded payload 'd' as backup.
+ */
+export function buildSupplierQuotationLink(
+  quotation: Quotation,
+  vendor: Vendor,
+  products: Product[],
+  storeName?: string,
+  storeWhatsApp?: string
+): string {
+  const origin = window.location.origin;
+  const path = window.location.pathname;
+  const code = quotation.code || quotation.id;
+
+  const payload: QuotingLinkPayload = {
+    cot: code,
+    t: quotation.title,
+    s: storeName || 'Comércio',
+    sw: storeWhatsApp,
+    d: quotation.deadlineAt,
+    v: vendor.id,
+    vn: vendor.name,
+    vc: vendor.company,
+    vm: vendor.minOrderValue || 0,
+    vp: vendor.phone,
+    vd: vendor.deliveryDays,
+    p: products.map((p) => ({ id: p.id, n: p.name, q: p.quantity, u: p.unit })),
+  };
+
+  const encoded = encodeQuotationPayload(payload);
+
+  const params = new URLSearchParams();
+  params.set('role', 'fornecedor');
+  params.set('cot', code);
+  params.set('v', vendor.id);
+  params.set('vn', vendor.name);
+  params.set('vc', vendor.company);
+  if (vendor.minOrderValue) params.set('vm', String(vendor.minOrderValue));
+  if (vendor.deliveryDays) params.set('vd', vendor.deliveryDays);
+  if (vendor.phone) params.set('vp', vendor.phone);
+  if (storeName) params.set('s', storeName);
+  if (storeWhatsApp) params.set('sw', storeWhatsApp);
+  if (encoded) params.set('d', encoded);
+
+  return `${origin}${path}?${params.toString()}`;
 }
 
 // Sample demo data loader (optional, if user wants to see populated dashboard)
