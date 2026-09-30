@@ -121,11 +121,11 @@ export const UnifiedLoginView: React.FC<Props> = ({
             </div>
 
             <h2 className="text-3xl font-extrabold tracking-tight text-white leading-tight">
-              A melhor cotação do seu hortifrúti em minutos, não em horas.
+              A melhor cotação para a sua empresa em minutos, não em horas.
             </h2>
 
             <p className="text-sm text-neutral-400 leading-relaxed">
-              Cruze automaticamente preços unitários de múltiplos fornecedores e representantes. O sistema valida pedidos mínimos, evita perdas e garante compras no melhor preço do dia.
+              Cruze automaticamente preços unitários de múltiplos fornecedores e distribuidores. O sistema valida pedidos mínimos, elimina custos desnecessários e garante sempre a compra mais vantajosa para o seu negócio.
             </p>
           </div>
 
@@ -135,7 +135,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
                 <TrendingDown className="w-4 h-4" />
                 <span>18.4% Economia</span>
               </div>
-              <div className="text-xs text-neutral-400">Média comprovada nas compras semanais de hortifrúti</div>
+              <div className="text-xs text-neutral-400">Média comprovada na redução de custos de compras</div>
             </div>
 
             <div className="p-4 rounded-xl bg-neutral-900/80 border border-neutral-800/80 space-y-1">
@@ -149,8 +149,8 @@ export const UnifiedLoginView: React.FC<Props> = ({
         </div>
 
         <div className="relative z-10 pt-8 border-t border-neutral-800/80 flex items-center justify-between text-xs text-neutral-500">
-          <span>Suporte 24/7 para Ceasas e Redes Varejistas</span>
-          <span>v2.4 Enterprise</span>
+          <span>Suporte para Redes Varejistas, Lojistas e Empresários</span>
+          <span className="font-semibold text-neutral-300">TECX SISTEMAS • v2.4 Enterprise</span>
         </div>
       </div>
 
@@ -344,7 +344,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
                         : 'border-neutral-300 bg-neutral-50 text-neutral-700 hover:bg-white hover:border-neutral-400'
                     }`}
                   >
-                    Hortifrúti Ceasa Sul
+                    Distribuidora Aliança Nacional
                   </button>
                 </div>
               </div>

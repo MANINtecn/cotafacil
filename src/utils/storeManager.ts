@@ -477,44 +477,44 @@ export function buildSupplierQuotationLink(
 export function populateDemoData(): { stores: ShopkeeperStore[]; vendors: Vendor[]; products: Product[]; quotation: Quotation; invoices: BillingInvoice[] } {
   const demoStore: ShopkeeperStore = {
     id: 'store-central',
-    name: 'Hortifrúti Central',
-    slug: 'hortifruti-central',
+    name: 'Supermercado Central',
+    slug: 'super-central',
     contactPerson: 'Carlos Alberto',
-    email: 'contato@hortifruticentral.com.br',
+    email: 'contato@supermercadocentral.com.br',
     whatsapp: '5511998877661',
     monthlyFee: 390.00,
     dueDay: 15,
     planName: 'Plano Pro',
     status: 'Ativo',
     createdAt: new Date().toISOString(),
-    pixKey: '00020126580014br.gov.bcb.pix0136hortifruti-central-390',
+    pixKey: '00020126580014br.gov.bcb.pix0136super-central-390',
   };
 
   const demoVendors: Vendor[] = [
     { id: 'v1', name: 'Carlos Eduardo', company: 'Distribuidora Bom Preço', hasViewed: true, minOrderValue: 500, phone: '(11) 98451-2210', city: 'São Paulo - SP', deliveryDays: 'Entrega em 24h' },
-    { id: 'v2', name: 'Marcos Vinicius', company: 'Hortifrúti Ceasa Sul', hasViewed: true, minOrderValue: 400, phone: '(11) 97123-4567', city: 'São Paulo - SP', deliveryDays: 'Entrega no mesmo dia' },
+    { id: 'v2', name: 'Marcos Vinicius', company: 'Distribuidora Aliança Nacional', hasViewed: true, minOrderValue: 400, phone: '(11) 97123-4567', city: 'São Paulo - SP', deliveryDays: 'Entrega no mesmo dia' },
     { id: 'v3', name: 'Renata Silveira', company: 'AgroComercial Da Terra', hasViewed: false, minOrderValue: 600, phone: '(19) 99234-8890', city: 'Campinas - SP', deliveryDays: 'Entrega em 48h' },
-    { id: 'v4', name: 'João Paulo', company: 'Verduras Express Ltda', hasViewed: true, minOrderValue: 350, phone: '(11) 96543-2109', city: 'São Bernardo - SP', deliveryDays: 'Entrega diária' },
+    { id: 'v4', name: 'João Paulo', company: 'Distribuidora Express Ltda', hasViewed: true, minOrderValue: 350, phone: '(11) 96543-2109', city: 'São Bernardo - SP', deliveryDays: 'Entrega diária' },
   ];
 
   const demoProducts: Product[] = [
-    { id: 'p1', name: 'Tomate Italiano', category: 'Legumes', unit: 'kg', quantity: 250 },
-    { id: 'p2', name: 'Batata Inglesa Especial', category: 'Tubérculos', unit: 'kg', quantity: 300 },
-    { id: 'p3', name: 'Cebola Amarela', category: 'Legumes', unit: 'kg', quantity: 150 },
-    { id: 'p4', name: 'Alface Americana', category: 'Verduras', unit: 'cx', quantity: 40 },
-    { id: 'p5', name: 'Cenoura Selecionada', category: 'Legumes', unit: 'kg', quantity: 120 },
-    { id: 'p6', name: 'Banana Prata Climatizada', category: 'Frutas', unit: 'cx', quantity: 35 },
-    { id: 'p7', name: 'Maçã Gala Nacional', category: 'Frutas', unit: 'cx', quantity: 25 },
-    { id: 'p8', name: 'Pimentão Verde Especial', category: 'Legumes', unit: 'kg', quantity: 80 },
-    { id: 'p9', name: 'Manga Tommy', category: 'Frutas', unit: 'cx', quantity: 20 },
-    { id: 'p10', name: 'Melancia Redonda', category: 'Frutas', unit: 'kg', quantity: 400 },
-    { id: 'p11', name: 'Laranja Pera Rio', category: 'Frutas', unit: 'cx', quantity: 45 },
-    { id: 'p12', name: 'Alho Roxo Nacional', category: 'Temperos', unit: 'kg', quantity: 30 },
+    { id: 'p1', name: 'Arroz Tipo 1 Especial 5kg', category: 'Alimentos', unit: 'pct', quantity: 150 },
+    { id: 'p2', name: 'Feijão Carioca 1kg', category: 'Alimentos', unit: 'pct', quantity: 200 },
+    { id: 'p3', name: 'Óleo de Soja 900ml', category: 'Alimentos', unit: 'cx', quantity: 30 },
+    { id: 'p4', name: 'Açúcar Refinado 1kg', category: 'Alimentos', unit: 'pct', quantity: 120 },
+    { id: 'p5', name: 'Café Torrado e Moído 500g', category: 'Alimentos', unit: 'pct', quantity: 80 },
+    { id: 'p6', name: 'Leite Integral UHT 1L', category: 'Laticínios', unit: 'cx', quantity: 50 },
+    { id: 'p7', name: 'Detergente Líquido 500ml', category: 'Limpeza', unit: 'cx', quantity: 40 },
+    { id: 'p8', name: 'Sabão em Pó 1kg', category: 'Limpeza', unit: 'cx', quantity: 35 },
+    { id: 'p9', name: 'Desinfetante Floral 2L', category: 'Limpeza', unit: 'un', quantity: 60 },
+    { id: 'p10', name: 'Papel Higiênico Folha Dupla', category: 'Higiene', unit: 'pct', quantity: 70 },
+    { id: 'p11', name: 'Creme Dental 90g', category: 'Higiene', unit: 'un', quantity: 100 },
+    { id: 'p12', name: 'Sabonete Suave 85g', category: 'Higiene', unit: 'un', quantity: 120 },
   ];
 
   const demoQuotation: Quotation = {
     id: 'COT-8942',
-    title: 'Feira Semanal - Hortifrúti',
+    title: 'Cotação Geral de Produtos',
     code: 'COT-8942',
     status: 'Em Cotação',
     createdAt: new Date().toISOString(),
@@ -524,10 +524,10 @@ export function populateDemoData(): { stores: ShopkeeperStore[]; vendors: Vendor
   };
 
   const demoInvoices: BillingInvoice[] = [
-    { id: 'inv-1', storeId: 'store-central', shopkeeperName: 'Supermercado Central', slug: 'hortifruti-central', planName: 'Plano Pro', amount: 390.00, dueDate: new Date().toISOString(), dueDateFormatted: '15/10/2026', status: 'Atrasado', isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136central-390', whatsapp: '5511998877661', contactPerson: 'Roberto Carlos', daysOverdue: 12 },
-    { id: 'inv-2', storeId: 'store-2', shopkeeperName: 'Hortifrúti da Vila', slug: 'vila-horti', planName: 'Plano Enterprise', amount: 490.00, dueDate: new Date().toISOString(), dueDateFormatted: '18/10/2026', status: 'Atrasado', isBlocked: true, pixKey: '00020126580014br.gov.bcb.pix0136vila-490', whatsapp: '5511998877662', contactPerson: 'Fernanda Lima', daysOverdue: 9 },
-    { id: 'inv-3', storeId: 'store-3', shopkeeperName: 'Quitanda Primavera', slug: 'quitanda-primavera', planName: 'Plano Starter', amount: 330.00, dueDate: new Date().toISOString(), dueDateFormatted: '30/10/2026', status: 'Pendente', isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136primavera-330', whatsapp: '5511998877665', contactPerson: 'Marcio Souza', daysOverdue: 0 },
-    { id: 'inv-4', storeId: 'store-4', shopkeeperName: 'Rede FruttiMax', slug: 'fruttimax', planName: 'Plano Enterprise', amount: 780.00, dueDate: new Date().toISOString(), dueDateFormatted: '10/10/2026', status: 'Pago', isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136fruttimax-780', whatsapp: '5511998877667', contactPerson: 'Leandro Melo', daysOverdue: 0 },
+    { id: 'inv-1', storeId: 'store-central', shopkeeperName: 'Supermercado Central', slug: 'super-central', planName: 'Plano Pro', amount: 390.00, dueDate: new Date().toISOString(), dueDateFormatted: '15/10/2026', status: 'Atrasado', isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136central-390', whatsapp: '5511998877661', contactPerson: 'Roberto Carlos', daysOverdue: 12 },
+    { id: 'inv-2', storeId: 'store-2', shopkeeperName: 'Comercial da Vila', slug: 'vila-comercial', planName: 'Plano Enterprise', amount: 490.00, dueDate: new Date().toISOString(), dueDateFormatted: '18/10/2026', status: 'Atrasado', isBlocked: true, pixKey: '00020126580014br.gov.bcb.pix0136vila-490', whatsapp: '5511998877662', contactPerson: 'Fernanda Lima', daysOverdue: 9 },
+    { id: 'inv-3', storeId: 'store-3', shopkeeperName: 'Mercado Primavera', slug: 'mercado-primavera', planName: 'Plano Starter', amount: 330.00, dueDate: new Date().toISOString(), dueDateFormatted: '30/10/2026', status: 'Pendente', isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136primavera-330', whatsapp: '5511998877665', contactPerson: 'Marcio Souza', daysOverdue: 0 },
+    { id: 'inv-4', storeId: 'store-4', shopkeeperName: 'Rede Maxxi Varejo', slug: 'maxxi-varejo', planName: 'Plano Enterprise', amount: 780.00, dueDate: new Date().toISOString(), dueDateFormatted: '10/10/2026', status: 'Pago', isBlocked: false, pixKey: '00020126580014br.gov.bcb.pix0136maxxi-780', whatsapp: '5511998877667', contactPerson: 'Leandro Melo', daysOverdue: 0 },
   ];
 
   saveStores([demoStore]);

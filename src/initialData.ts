@@ -1,8 +1,8 @@
 import { Product, Vendor, Quotation, BillingInvoice } from './types';
 
 export const initialQuotation: Quotation = {
-  id: 'cot-horti-2026-04',
-  title: 'Feira Semanal - Hortifrúti',
+  id: 'cot-geral-2026-04',
+  title: 'Cotação Geral de Produtos',
   code: 'COT-8942',
   status: 'Em Cotação',
   createdAt: '2026-09-25T08:00:00Z',
@@ -40,7 +40,7 @@ export const initialVendors: Vendor[] = [
   {
     id: 'v2',
     name: 'Renato Gomes',
-    company: 'Ceasa Verde Atacado',
+    company: 'Atacado & Distribuição Central',
     hasViewed: true,
     minOrderValue: 1200.00,
     phone: '(11) 97103-9944',
@@ -50,7 +50,7 @@ export const initialVendors: Vendor[] = [
   {
     id: 'v3',
     name: 'Marcos Souza',
-    company: 'Frutas & Cia Distribuidora',
+    company: 'Comercial Aliança Distribuidora',
     hasViewed: true,
     minOrderValue: 1000.00,
     phone: '(19) 99234-1188',
@@ -60,7 +60,7 @@ export const initialVendors: Vendor[] = [
   {
     id: 'v4',
     name: 'Juliana Mendes',
-    company: 'Terra Viva Hortifrúti',
+    company: 'Distribuidora Aliança Nacional',
     hasViewed: false,
     minOrderValue: 800.00,
     phone: '(11) 96510-4402',
@@ -146,8 +146,8 @@ export const initialPrices: Record<string, Record<string, number | null>> = {
 export const initialInvoices: BillingInvoice[] = [
   {
     id: 'fat-2026-081',
-    shopkeeperName: 'Hortifrúti Central da Vila',
-    slug: 'hortifruti-central',
+    shopkeeperName: 'Supermercado Central da Vila',
+    slug: 'super-central',
     planName: 'Plano Pro (Até 50 Cotações)',
     amount: 390.00,
     dueDate: '2026-09-18',
@@ -176,8 +176,8 @@ export const initialInvoices: BillingInvoice[] = [
   },
   {
     id: 'fat-2026-083',
-    shopkeeperName: 'Sacolão & Mercearia Da Fazenda',
-    slug: 'sacolao-fazenda',
+    shopkeeperName: 'Mercado & Mercearia Da Fazenda',
+    slug: 'mercado-fazenda',
     planName: 'Plano Starter (Até 15 Cotações)',
     amount: 290.00,
     dueDate: '2026-09-22',
@@ -191,8 +191,8 @@ export const initialInvoices: BillingInvoice[] = [
   },
   {
     id: 'fat-2026-084',
-    shopkeeperName: 'Empório Verde Natural',
-    slug: 'emporio-verde',
+    shopkeeperName: 'Empório Central do Bairro',
+    slug: 'emporio-central',
     planName: 'Plano Pro (Até 50 Cotações)',
     amount: 390.00,
     dueDate: '2026-09-28',
@@ -206,8 +206,8 @@ export const initialInvoices: BillingInvoice[] = [
   },
   {
     id: 'fat-2026-085',
-    shopkeeperName: 'Quitanda Primavera Gourmet',
-    slug: 'quitanda-primavera',
+    shopkeeperName: 'Comercial Primavera Gourmet',
+    slug: 'comercial-primavera',
     planName: 'Plano Starter (Até 15 Cotações)',
     amount: 290.00,
     dueDate: '2026-09-30',
@@ -236,8 +236,8 @@ export const initialInvoices: BillingInvoice[] = [
   },
   {
     id: 'fat-2026-087',
-    shopkeeperName: 'Rede Vale Verde Hortifrúti',
-    slug: 'valeverde-horti',
+    shopkeeperName: 'Rede Vale Verde Comércio',
+    slug: 'valeverde-comercio',
     planName: 'Plano Enterprise Ilimitado',
     amount: 590.00,
     dueDate: '2026-09-12',
