@@ -99,19 +99,13 @@ export default function App() {
   });
   const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
 
-  // Stores & Active Store
+  // Stores & Active Store (Sem pré-seleção para garantir isolamento de tenant)
   const [stores, setStores] = useState<ShopkeeperStore[]>(() => getStoredStores());
-  const [currentStore, setCurrentStore] = useState<ShopkeeperStore | null>(() => {
-    const list = getStoredStores();
-    return list.length > 0 ? list[0] : null;
-  });
+  const [currentStore, setCurrentStore] = useState<ShopkeeperStore | null>(null);
+  const [isSuperAdminViewing, setIsSuperAdminViewing] = useState(false);
 
-  // Vendors for active store - clean of mock vendors
-  const [vendors, setVendors] = useState<Vendor[]>(() => {
-    const initialList = getStoredStores();
-    const activeSlug = initialList.length > 0 ? initialList[0].slug : undefined;
-    return getStoredVendors(activeSlug);
-  });
+  // Vendors for active store - inicia limpo por segurança multi-tenant
+  const [vendors, setVendors] = useState<Vendor[]>([]);
 
   // Quotation & Products - initialized from stored active quotation bundle if available
   const [quotation, setQuotation] = useState<Quotation>(() => {
@@ -466,27 +460,34 @@ export default function App() {
   // --- LOGIN & REGISTRATION HANDLERS ---
   const handleLoginAsLojista = (slugOrEmail?: string) => {
     const allStores = getStoredStores();
+    const cleanIdentifier = (slugOrEmail || user?.email || '').trim().toLowerCase();
+
     let target = allStores.find(
-      (s) => s.slug === slugOrEmail || s.email.toLowerCase() === slugOrEmail?.toLowerCase()
+      (s) => s.slug.toLowerCase() === cleanIdentifier || s.email.toLowerCase() === cleanIdentifier
     );
 
-    // If not found but stores exist, pick first; or if completely empty, prompt or create
-    if (!target && allStores.length > 0) {
-      target = allStores[0];
-    } else if (!target) {
-      // Create a clean store for this user
+    // Se o usuário não tiver uma loja vinculada ao seu e-mail/identificador, cria uma loja própria isolada (NUNCA herda loja de outros)
+    if (!target) {
+      const emailToUse = user?.email || (cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanIdentifier || 'lojista'}@cotafacil.com.br`);
+      const rawName = cleanIdentifier.includes('@')
+        ? cleanIdentifier.split('@')[0]
+        : cleanIdentifier || 'Meu Comércio';
+      const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1).replace(/[-_.]/g, ' ');
+      const cleanSlug = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-') || `loja-${Date.now().toString().slice(-4)}`;
+
       target = addStore({
-        name: slugOrEmail ? slugOrEmail.replace(/[-_]/g, ' ') : 'Meu Comércio',
-        slug: slugOrEmail || 'minha-loja',
-        contactPerson: 'Lojista',
-        email: 'contato@minhaloja.com.br',
-        whatsapp: '5511999999999',
+        name: formattedName,
+        slug: cleanSlug,
+        contactPerson: user?.user_metadata?.full_name || 'Lojista',
+        email: emailToUse,
+        whatsapp: '',
         monthlyFee: 390.00,
         dueDay: 10,
-        planName: 'Plano Pro',
-        status: 'Ativo',
+        planName: 'Plano Pro (Teste Grátis 7 dias)',
+        status: 'Teste Grátis',
       });
       setStores(getStoredStores());
+      setInvoices(getStoredInvoices());
     }
 
     // Check if blocked
@@ -609,7 +610,7 @@ export default function App() {
           quotation: curData?.quotation || quotation,
           products: curData?.products || products,
           vendors: mergedVendors,
-          storeName: curData?.storeName || currentStore?.name || 'A Casa do Senhor',
+          storeName: curData?.storeName || currentStore?.name || 'Minha Loja',
           storeSlug: curData?.storeSlug || currentStore?.slug || 'minha-loja',
           prices: mergedPrices,
           updatedAt: new Date().toISOString(),
@@ -629,12 +630,15 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    setIsSuperAdminViewing(false);
     try {
       await logOut();
     } catch (e) {
       console.error('Logout error:', e);
     }
     setCurrentUserRole(null);
+    setCurrentStore(null);
+    setVendors([]);
     setCurrentScreen('login');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -793,7 +797,7 @@ export default function App() {
       quotation: updatedQuotation,
       products: newProducts,
       vendors: selectedVendors,
-      storeName: currentStore?.name || 'A Casa do Senhor',
+      storeName: currentStore?.name || 'Minha Loja',
       storeSlug: currentStore?.slug || 'minha-loja',
       prices: updatedPrices,
       updatedAt: new Date().toISOString(),
@@ -1028,6 +1032,27 @@ export default function App() {
         </div>
       </nav>
 
+      {/* Super Admin Impersonation Banner */}
+      {isSuperAdminViewing && (
+        <div className="w-full bg-amber-400 text-neutral-950 px-4 py-2.5 text-xs font-bold flex items-center justify-between shadow-md sticky top-0 z-50 border-b border-amber-500">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-neutral-950 animate-pulse"></span>
+            <span>Modo Super Admin: Inspecionando Loja <strong>{currentStore?.name}</strong></span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setIsSuperAdminViewing(false);
+              setCurrentUserRole('admin');
+              setCurrentScreen('admin-billing');
+            }}
+            className="px-3 py-1 bg-neutral-950 text-white rounded-lg hover:bg-neutral-800 transition-colors cursor-pointer text-xs font-semibold shadow-xs"
+          >
+            ← Voltar ao Painel Master
+          </button>
+        </div>
+      )}
+
       {/* Main Container Wrapper: Full width responsive or Mobile Mockup frame */}
       <div
         className={`w-full transition-all duration-300 flex-1 flex flex-col justify-start ${
@@ -1079,6 +1104,7 @@ export default function App() {
               onDeleteStore={handleAdminDeleteStore}
               onSelectStoreToView={(st) => {
                 setCurrentStore(st);
+                setIsSuperAdminViewing(true);
                 setCurrentUserRole('lojista');
                 setCurrentScreen('quotation');
               }}
@@ -1237,7 +1263,7 @@ export default function App() {
             <SupplierPortalView
               vendor={selectedVendor}
               quotation={quotation}
-              storeName={currentStore?.name || 'A Casa do Senhor'}
+              storeName={currentStore?.name || 'Minha Loja'}
               storeWhatsApp={currentStore?.whatsapp}
               products={products}
               initialPrices={prices[selectedVendorId] || {}}
@@ -1276,7 +1302,7 @@ export default function App() {
             isOpen={isWhatsAppModalOpen}
             onClose={() => setIsWhatsAppModalOpen(false)}
             quotation={dispatchQuotationData.quotation}
-            storeName={currentStore?.name || 'A Casa do Senhor'}
+            storeName={currentStore?.name || 'Minha Loja'}
             storeWhatsApp={currentStore?.whatsapp}
             productsCount={dispatchQuotationData.productsCount}
             products={dispatchQuotationData.products}

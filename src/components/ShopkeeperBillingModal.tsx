@@ -12,7 +12,6 @@ import {
   AlertCircle,
   ExternalLink,
   ShieldCheck,
-  Sparkles,
   Receipt,
   Download,
   Lock,

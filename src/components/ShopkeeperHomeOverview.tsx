@@ -85,11 +85,11 @@ export const ShopkeeperHomeOverview: React.FC<Props> = ({
                   Painel Principal
                 </span>
                 <span className="text-xs text-neutral-400 font-mono-num">
-                  /{store?.slug || 'a-casa-do-senhor'}
+                  /{store?.slug || 'minha-loja'}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white">
-                {store?.name || 'A Casa do Senhor'}
+                {store?.name || 'Minha Loja'}
               </h1>
               <p className="text-xs text-neutral-400 max-w-xl">
                 Central unificada de compras B2B: gerencie cotações empilhadas, compare menores preços e feche pedidos diretos com distribuidores.

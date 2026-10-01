@@ -110,7 +110,7 @@ export const HeaderQuotation: React.FC<Props> = ({
 
             <div className="flex items-baseline gap-3">
               <h1 className="text-lg lg:text-2xl font-black tracking-tight text-neutral-950">
-                {store ? store.name : 'A Casa do Senhor'}
+                {store ? store.name : 'Minha Loja'}
               </h1>
               <span className="text-xs text-neutral-500 hidden sm:inline">
                 Central de Cotações & Compras B2B

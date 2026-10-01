@@ -49,11 +49,12 @@ export function verifyAdminLogin(email: string, pass: string): boolean {
   const cleanEmail = email.trim().toLowerCase();
   const admin = getAdminCredentials();
 
-  // Direct check for designated super admin emails
+  // Strict check for designated super admin emails
   if (isSuperAdminEmail(cleanEmail)) {
-    if (!pass || pass === admin.passwordHash || pass === 'CotaFacil@Admin2026' || pass.length >= 4) {
-      return true;
-    }
+    return (
+      pass === admin.passwordHash ||
+      pass === 'CotaFacil@Admin2026'
+    );
   }
 
   return (
@@ -376,7 +377,7 @@ export function deleteQuotationFromHistory(code: string, storeSlug?: string): Qu
 export interface QuotingLinkPayload {
   cot: string;      // Quotation code, e.g. 'COT-8942'
   t: string;        // Quotation title
-  s: string;        // Store name, e.g. 'A Casa do Senhor'
+  s: string;        // Store name, e.g. 'Supermercado Modelo'
   sw?: string;      // Store WhatsApp
   d?: string;       // Deadline ISO
   v: string;        // Vendor ID

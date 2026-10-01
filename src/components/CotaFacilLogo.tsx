@@ -128,7 +128,7 @@ export const CotaFacilLogo: React.FC<Props> = ({
               theme === 'dark' ? 'text-neutral-400' : 'text-neutral-500'
             }`}
           >
-            Cotações Inteligentes
+            Compras Estratégicas B2B
           </span>
         </div>
       )}

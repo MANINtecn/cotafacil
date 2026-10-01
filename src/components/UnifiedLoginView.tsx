@@ -59,7 +59,13 @@ export const UnifiedLoginView: React.FC<Props> = ({
 
   const handleSubmitVendor = (e: React.FormEvent) => {
     e.preventDefault();
-    onLoginAsVendor(selectedVendorQuick);
+    if (!vendorCode.trim()) return;
+    const clean = vendorCode.trim();
+    if (clean.includes('http') || clean.includes('?')) {
+      window.location.href = clean;
+    } else {
+      window.location.search = `?role=fornecedor&cot=${encodeURIComponent(clean)}`;
+    }
   };
 
   const handleGoogleLogin = async () => {
@@ -157,7 +163,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
                 Acesse sua conta
               </h1>
               <p className="text-xs text-neutral-500 font-medium mt-0.5">
-                Plataforma de Cotações Inteligentes
+                Plataforma de Gestão de Cotações & Compras B2B
               </p>
             </div>
           </div>
@@ -306,49 +312,20 @@ export const UnifiedLoginView: React.FC<Props> = ({
           {activeTab === 'fornecedor' && (
             <form onSubmit={handleSubmitVendor} className="space-y-4">
               <div className="p-3 bg-neutral-50 rounded-xl border border-neutral-200 text-xs text-neutral-600 leading-relaxed">
-                Área para representantes auditarem os lances e digitarem seus preços unitários por produto:
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
-                  Selecione sua Distribuidora / Empresa
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setSelectedVendorQuick('v1')}
-                    className={`p-2.5 rounded-xl border-2 text-left text-xs font-semibold transition-all cursor-pointer ${
-                      selectedVendorQuick === 'v1'
-                        ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs'
-                        : 'border-neutral-300 bg-neutral-50 text-neutral-700 hover:bg-white hover:border-neutral-400'
-                    }`}
-                  >
-                    Distribuidora Bom Preço
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedVendorQuick('v2')}
-                    className={`p-2.5 rounded-xl border-2 text-left text-xs font-semibold transition-all cursor-pointer ${
-                      selectedVendorQuick === 'v2'
-                        ? 'border-neutral-900 bg-neutral-900 text-white shadow-xs'
-                        : 'border-neutral-300 bg-neutral-50 text-neutral-700 hover:bg-white hover:border-neutral-400'
-                    }`}
-                  >
-                    Distribuidora Aliança Nacional
-                  </button>
-                </div>
+                Representantes e distribuidores acessam a cotação diretamente pelo <strong>link exclusivo</strong> enviado pelo lojista via WhatsApp ou digitando o código da cotação:
               </div>
 
               <div className="space-y-1">
                 <label className="text-[11px] font-bold text-neutral-700 uppercase tracking-wide">
-                  Código de Representante
+                  Código da Cotação ou Link Completo
                 </label>
                 <input
                   type="text"
                   value={vendorCode}
                   onChange={(e) => setVendorCode(e.target.value)}
-                  placeholder="Digite seu código (ex: REP-8942)"
-                  className="w-full px-3.5 py-3 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 rounded-xl text-xs text-neutral-900 placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs"
+                  placeholder="Ex: COT-8942 ou cole o link do WhatsApp"
+                  required
+                  className="w-full px-3.5 py-3 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10 rounded-xl text-xs text-neutral-900 placeholder-neutral-400 focus:outline-hidden transition-all shadow-xs font-mono"
                 />
               </div>
 
@@ -356,7 +333,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
                 type="submit"
                 className="w-full py-3 px-4 bg-neutral-900 hover:bg-neutral-800 text-white rounded-xl text-xs font-bold shadow-xs active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer mt-1"
               >
-                <span>Acessar Cotação Ativa</span>
+                <span>Acessar Portal da Cotação</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>

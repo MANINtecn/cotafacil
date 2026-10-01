@@ -15,7 +15,6 @@ import {
   Smartphone,
   Eye,
   EyeOff,
-  Sparkles,
   Layers,
   Save,
   Check
@@ -300,7 +299,7 @@ export const AdminSettingsView: React.FC<Props> = ({
           <div className="lg:col-span-5 space-y-4">
             <div className="bg-white rounded-3xl border border-neutral-200 p-6 shadow-2xs space-y-4">
               <div className="flex items-center gap-2 pb-2 border-b border-neutral-100">
-                <Sparkles className="w-4 h-4 text-emerald-600" />
+                <Eye className="w-4 h-4 text-emerald-600" />
                 <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-800">
                   Pré-visualização em Tempo Real
                 </h4>
