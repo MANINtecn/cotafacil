@@ -52,5 +52,6 @@
 - [x] Teste de build de produção (`npm run build`) validado com sucesso sem erros.
 - [x] Commit e sincronização no repositório GitHub (`commit 0ef22bc` enviado para `origin/main`).
 - [x] **Configuração na Vercel**: Adicionar as variáveis de ambiente `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` nas configurações do projeto na Vercel (`Project Settings > Environment Variables`) e acionar o Redeploy.
+- [x] **Ajuste de Dependências Vercel**: Remoção do `esbuild@^0.25.0` defasado em `package.json` e criação do `.npmrc` com `legacy-peer-deps=true` para resolver conflito de peer dependencies no npm install da Vercel (Commit `6c30510`).
 - [ ] **Ativação do Google OAuth no Supabase**: Acessar *Authentication > Providers > Google* no painel do Supabase com Client ID / Client Secret do Google Cloud Console e copiar o Callback URL do Supabase para o console do Google.
 
