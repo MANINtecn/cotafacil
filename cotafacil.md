@@ -51,6 +51,6 @@
 - [x] Adaptação completa dos fluxos de login com Google e telas de cotação/pedidos para o Supabase.
 - [x] Teste de build de produção (`npm run build`) validado com sucesso sem erros.
 - [x] Commit e sincronização no repositório GitHub (`commit 0ef22bc` enviado para `origin/main`).
-- [ ] **Configuração na Vercel**: Adicionar as variáveis de ambiente `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` nas configurações do projeto na Vercel (`Project Settings > Environment Variables`).
+- [x] **Configuração na Vercel**: Adicionar as variáveis de ambiente `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` nas configurações do projeto na Vercel (`Project Settings > Environment Variables`) e acionar o Redeploy.
 - [ ] **Ativação do Google OAuth no Supabase**: Acessar *Authentication > Providers > Google* no painel do Supabase com Client ID / Client Secret do Google Cloud Console e copiar o Callback URL do Supabase para o console do Google.
 
