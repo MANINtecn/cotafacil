@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Quotation, ShopkeeperStore } from '../types';
-import { User } from 'firebase/auth';
+import { User } from '../supabase';
 import { Clock, ShoppingCart, Store, Building2, LogOut, PlusCircle, History, CreditCard } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 

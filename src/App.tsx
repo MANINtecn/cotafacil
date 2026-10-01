@@ -24,9 +24,19 @@ import { ShopkeeperBillingModal } from './components/ShopkeeperBillingModal';
 import { OpenQuotationsStack } from './components/OpenQuotationsStack';
 import { ActiveQuotationDetails } from './components/ActiveQuotationDetails';
 import { ShopkeeperHomeOverview } from './components/ShopkeeperHomeOverview';
-import { auth, db, testConnection, handleFirestoreError, OperationType, logOut } from './firebase';
-import { onAuthStateChanged, User } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs, updateDoc, onSnapshot, deleteDoc } from 'firebase/firestore';
+import {
+  supabase,
+  User,
+  testConnection,
+  logOut,
+  saveQuotationToSupabase,
+  getQuotationFromSupabase,
+  subscribeToQuotationRealtime,
+  saveSupplierProposalToSupabase,
+  saveOrderToSupabase,
+  loadOrdersFromSupabase,
+  deleteQuotationFromSupabase,
+} from './supabase';
 import {
   getStoredStores,
   addStore,
@@ -212,13 +222,12 @@ export default function App() {
           });
         }
 
-        // 1. Fetch from Firestore by quotation code if cotParam exists (works across all browsers/devices)
+        // 1. Fetch from Supabase by quotation code if cotParam exists (works across all browsers/devices)
         const targetCode = cotParam || (dParam ? decodeQuotationPayload(dParam)?.cot : null);
         if (targetCode) {
           try {
-            const snap = await getDoc(doc(db, 'quotations', targetCode));
-            if (snap.exists()) {
-              const b = snap.data() as QuotationBundle;
+            const b = await getQuotationFromSupabase(targetCode);
+            if (b) {
               if (b.quotation) setQuotation(b.quotation);
               if (b.products && b.products.length > 0) setProducts(b.products);
               if (b.vendors && b.vendors.length > 0) {
@@ -250,7 +259,7 @@ export default function App() {
               return;
             }
           } catch (e) {
-            console.warn('Firestore load quotation attempt:', e);
+            console.warn('Supabase load quotation attempt:', e);
           }
         }
 
@@ -328,41 +337,55 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // Firebase auth sync
+  // Supabase auth sync & pedidos
   useEffect(() => {
     testConnection();
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+
+    // Carrega a sessão atual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
       setUser(currentUser);
       setAuthLoading(false);
 
       if (currentUser) {
         const email = currentUser.email?.toLowerCase();
-        // Check if the signed in Google account is the Super Admin
         if (email === 'icaroetatiana@gmail.com' || isSuperAdminEmail(email)) {
           setCurrentUserRole('admin');
           setCurrentScreen((prev) => (prev === 'login' || prev === 'super-admin-login' ? 'admin-billing' : prev));
         }
 
-        try {
-          const q = query(
-            collection(db, 'orders'),
-            where('userId', '==', currentUser.uid)
-          );
-          const snap = await getDocs(q);
-          const loadedOrders: PurchaseOrder[] = [];
-          snap.forEach((docItem) => {
-            loadedOrders.push(docItem.data() as PurchaseOrder);
-          });
-          if (loadedOrders.length > 0) {
+        loadOrdersFromSupabase(currentUser.id).then((loadedOrders) => {
+          if (loadedOrders && loadedOrders.length > 0) {
             setOrders(loadedOrders);
           }
-        } catch (e) {
-          handleFirestoreError(e, OperationType.GET, 'orders');
-        }
+        });
       }
     });
 
-    return () => unsubscribe();
+    // Escuta mudanças de autenticação (login/logout/token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      const currentUser = session?.user ?? null;
+      setUser(currentUser);
+      setAuthLoading(false);
+
+      if (currentUser) {
+        const email = currentUser.email?.toLowerCase();
+        if (email === 'icaroetatiana@gmail.com' || isSuperAdminEmail(email)) {
+          setCurrentUserRole('admin');
+          setCurrentScreen((prev) => (prev === 'login' || prev === 'super-admin-login' ? 'admin-billing' : prev));
+        }
+
+        loadOrdersFromSupabase(currentUser.id).then((loadedOrders) => {
+          if (loadedOrders && loadedOrders.length > 0) {
+            setOrders(loadedOrders);
+          }
+        });
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Update vendors & history whenever currentStore changes (only in lojista mode to avoid overwriting supplier state)
@@ -374,13 +397,12 @@ export default function App() {
     }
   }, [currentStore, currentUserRole]);
 
-  // Real-time synchronization of active quotation for lojista
+  // Real-time synchronization of active quotation for lojista via Supabase Realtime
   useEffect(() => {
     if (currentUserRole === 'lojista' && quotation.code) {
       try {
-        const unsub = onSnapshot(doc(db, 'quotations', quotation.code), (snapshot) => {
-          if (snapshot.exists()) {
-            const liveData = snapshot.data() as QuotationBundle;
+        const unsub = subscribeToQuotationRealtime(quotation.code, (liveData) => {
+          if (liveData) {
             if (liveData.prices) {
               setPrices(liveData.prices);
             }
@@ -398,7 +420,7 @@ export default function App() {
         });
         return () => unsub();
       } catch (err) {
-        console.warn('Real-time quotation onSnapshot error:', err);
+        console.warn('Real-time quotation Supabase subscribe error:', err);
       }
     }
   }, [currentUserRole, quotation.code]);
@@ -548,52 +570,38 @@ export default function App() {
       return updated;
     });
 
-    // 3. Persist to Firestore:
+    // 3. Persist to Supabase:
     // Update active quotation with vendor's prices and viewed status
     if (quotation.code) {
       try {
-        const qRef = doc(db, 'quotations', quotation.code);
-        const snap = await getDoc(qRef);
-        if (snap.exists()) {
-          const curData = snap.data();
-          const mergedPrices = {
-            ...(curData.prices || {}),
-            [selectedVendorId]: {
-              ...(curData.prices?.[selectedVendorId] || {}),
-              ...newVendorPrices,
-            },
-          };
-          const mergedVendors = (curData.vendors || []).map((v: Vendor) =>
-            v.id === selectedVendorId
-              ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
-              : v
-          );
+        const curData = await getQuotationFromSupabase(quotation.code);
+        const mergedPrices = {
+          ...(curData?.prices || prices || {}),
+          [selectedVendorId]: {
+            ...(curData?.prices?.[selectedVendorId] || prices?.[selectedVendorId] || {}),
+            ...newVendorPrices,
+          },
+        };
+        const baseVendors = curData?.vendors && curData.vendors.length > 0 ? curData.vendors : vendors;
+        const mergedVendors = baseVendors.map((v) =>
+          v.id === selectedVendorId
+            ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
+            : v
+        );
 
-          await updateDoc(qRef, {
-            prices: mergedPrices,
-            vendors: mergedVendors,
-            updatedAt: new Date().toISOString(),
-          });
-        } else {
-          await setDoc(
-            qRef,
-            {
-              code: quotation.code,
-              quotation,
-              products,
-              prices: { [selectedVendorId]: newVendorPrices },
-              vendors: vendors.map((v) =>
-                v.id === selectedVendorId
-                  ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
-                  : v
-              ),
-              updatedAt: new Date().toISOString(),
-            },
-            { merge: true }
-          );
-        }
+        const updatedBundle: QuotationBundle = {
+          quotation: curData?.quotation || quotation,
+          products: curData?.products || products,
+          vendors: mergedVendors,
+          storeName: curData?.storeName || currentStore?.name || 'A Casa do Senhor',
+          storeSlug: curData?.storeSlug || currentStore?.slug || 'minha-loja',
+          prices: mergedPrices,
+          updatedAt: new Date().toISOString(),
+        };
+
+        await saveSupplierProposalToSupabase(quotation.code, updatedBundle);
       } catch (err) {
-        console.error('Error saving supplier proposal to Firestore:', err);
+        console.error('Error saving supplier proposal to Supabase:', err);
       }
     }
   };
@@ -632,9 +640,8 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 
     try {
-      const snap = await getDoc(doc(db, 'quotations', code));
-      if (snap.exists()) {
-        const live = snap.data() as QuotationBundle;
+      const live = await getQuotationFromSupabase(code);
+      if (live) {
         if (live.prices) setPrices(live.prices);
         if (live.vendors && live.vendors.length > 0) {
           const cleanVendors = live.vendors.filter(v => !['v1', 'v2', 'v3', 'v4'].includes(v.id) && !['Distribuidora Bom Preço', 'Hortifrúti Ceasa Sul', 'AgroComercial Da Terra', 'Verduras Express Ltda'].includes(v.company));
@@ -676,12 +683,11 @@ export default function App() {
     const updated = deleteQuotationFromHistory(code, currentStore?.slug);
     setQuotationsHistory(updated);
 
-    // 2. Delete from Firestore
+    // 2. Delete from Supabase
     try {
-      await deleteDoc(doc(db, 'quotations', code));
-      await deleteDoc(doc(db, 'public_quotations', code));
+      await deleteQuotationFromSupabase(code);
     } catch (e) {
-      console.warn('Error deleting quotation from Firestore:', e);
+      console.warn('Error deleting quotation from Supabase:', e);
     }
 
     // 3. If active quotation was the one deleted, reset or pick next
@@ -781,10 +787,9 @@ export default function App() {
     setQuotationsHistory((prev) => [bundle, ...prev.filter((b) => b.quotation.code !== code)]);
 
     try {
-      await setDoc(doc(db, 'quotations', code), bundle, { merge: true });
-      await setDoc(doc(db, 'public_quotations', code), bundle, { merge: true });
+      await saveQuotationToSupabase(bundle, user?.id);
     } catch (e) {
-      console.warn('Firestore quotation save error:', e);
+      console.warn('Supabase quotation save error:', e);
     }
 
     if (selectedVendors.length > 0) {
@@ -940,12 +945,9 @@ export default function App() {
 
       if (user) {
         try {
-          await setDoc(doc(db, 'orders', newOrder.id), {
-            ...newOrder,
-            userId: user.uid,
-          });
+          await saveOrderToSupabase(newOrder, user.id);
         } catch (e) {
-          handleFirestoreError(e, OperationType.WRITE, 'orders');
+          console.warn('Supabase order save error:', e);
         }
       }
     }, 400);

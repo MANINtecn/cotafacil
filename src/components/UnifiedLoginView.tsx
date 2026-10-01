@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Eye, EyeOff, Lock, Mail, Store, Truck, ArrowRight, CheckCircle2, TrendingDown, Clock, ShieldCheck, KeyRound, ShieldAlert } from 'lucide-react';
-import { signInWithGoogle } from '../firebase';
-import { User } from 'firebase/auth';
+import { signInWithGoogle, User } from '../supabase';
 import { isSuperAdminEmail } from '../utils/storeManager';
 import { CotaFacilLogo } from './CotaFacilLogo';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -67,21 +66,12 @@ export const UnifiedLoginView: React.FC<Props> = ({
     setIsGoogleLoading(true);
     setNotice(null);
     try {
-      const gUser = await signInWithGoogle();
-      if (gUser) {
-        const uEmail = gUser.email?.toLowerCase();
-        if (uEmail === 'icaroetatiana@gmail.com' || isSuperAdminEmail(uEmail)) {
-          // Designated Super Admin
-          onOpenSuperAdmin();
-        } else {
-          onLoginAsLojista(gUser.email || undefined);
-        }
-      }
+      await signInWithGoogle();
+      // O Supabase redireciona o usuário para a conta Google e volta conectado
     } catch (err: unknown) {
       console.error(err);
       const msg = err instanceof Error ? err.message : 'Falha ao autenticar com o Google.';
       setNotice(`Erro ao autenticar com o Google: ${msg}`);
-    } finally {
       setIsGoogleLoading(false);
     }
   };

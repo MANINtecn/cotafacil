@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, Mail, ShieldAlert, ArrowLeft, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { verifyAdminLogin, DEFAULT_ADMIN, getAdminCredentials, isSuperAdminEmail } from '../utils/storeManager';
-import { signInWithGoogle } from '../firebase';
+import { signInWithGoogle } from '../supabase';
 
 interface Props {
   onBackToApp: () => void;
@@ -37,21 +37,12 @@ export const SuperAdminLoginView: React.FC<Props> = ({ onBackToApp, onLoginSucce
     setIsGoogleLoading(true);
     setErrorMsg(null);
     try {
-      const gUser = await signInWithGoogle();
-      if (gUser) {
-        const userEmail = gUser.email?.toLowerCase();
-        // Authorized super admin emails (icaroetatiana@gmail.com)
-        if (userEmail === 'icaroetatiana@gmail.com' || isSuperAdminEmail(userEmail)) {
-          onLoginSuccess();
-        } else {
-          setErrorMsg(`A conta Google ${gUser.email} não tem privilégios de Super Admin. Use a conta icaroetatiana@gmail.com.`);
-        }
-      }
+      await signInWithGoogle();
+      // O Supabase redireciona para o Google e retorna autenticado
     } catch (err: unknown) {
       console.error('Google login error:', err);
       const message = err instanceof Error ? err.message : 'Falha na autenticação';
       setErrorMsg(`Erro ao conectar com o Google: ${message}`);
-    } finally {
       setIsGoogleLoading(false);
     }
   };
