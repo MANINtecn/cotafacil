@@ -42,7 +42,11 @@ export const SuperAdminLoginView: React.FC<Props> = ({ onBackToApp, onLoginSucce
     } catch (err: unknown) {
       console.error('Google login error:', err);
       const message = err instanceof Error ? err.message : 'Falha na autenticação';
-      setErrorMsg(`Erro ao conectar com o Google: ${message}`);
+      if (message.includes('not enabled') || message.includes('Unsupported provider')) {
+        setErrorMsg('O login com Google ainda não está ativado no painel do Supabase. Utilize o e-mail "icaroetatiana@gmail.com" e a senha padrão abaixo para entrar.');
+      } else {
+        setErrorMsg(`Erro ao conectar com o Google: ${message}`);
+      }
       setIsGoogleLoading(false);
     }
   };

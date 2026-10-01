@@ -86,8 +86,17 @@ const INITIAL_CLEAN_QUOTATION: Quotation = {
 };
 
 export default function App() {
-  // Production Navigation & Role State
-  const [currentScreen, setCurrentScreen] = useState<AppScreen>('login');
+  // Production Navigation & Role State (suporta /admin, /super-admin e parâmetros de URL)
+  const [currentScreen, setCurrentScreen] = useState<AppScreen>(() => {
+    try {
+      const path = window.location.pathname.toLowerCase();
+      const params = new URLSearchParams(window.location.search);
+      if (path === '/admin' || path === '/super-admin' || params.get('role') === 'admin' || params.has('admin')) {
+        return 'super-admin-login';
+      }
+    } catch {}
+    return 'login';
+  });
   const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
 
   // Stores & Active Store
@@ -186,8 +195,15 @@ export default function App() {
   useEffect(() => {
     const handleUrlRouting = async () => {
       try {
+        const path = window.location.pathname.toLowerCase();
         const params = new URLSearchParams(window.location.search);
         const roleParam = params.get('role');
+
+        if (path === '/admin' || path === '/super-admin' || roleParam === 'admin' || params.has('admin')) {
+          setCurrentScreen('super-admin-login');
+          return;
+        }
+
         const vParam = params.get('v') || params.get('vendorId');
         const cotParam = params.get('cot') || params.get('cotacao');
         const dParam = params.get('d') || params.get('data');
