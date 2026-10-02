@@ -59,6 +59,8 @@ import {
   saveQuotationToHistory,
   deleteQuotationFromHistory,
   decodeQuotationPayload,
+  decodeProposalPayload,
+  SupplierProposalPayload,
   buildSupplierQuotationLink,
   QuotationBundle,
   getStoredCatalogProducts,
@@ -208,6 +210,75 @@ export default function App() {
           return;
         }
 
+        // ========================================================
+        // 0. CHECK MAGIC IMPORT PROPOSAL LINK FROM WHATSAPP
+        // ========================================================
+        const importParam = params.get('importProp') || params.get('prop');
+        if (importParam) {
+          const prop = decodeProposalPayload(importParam);
+          if (prop && prop.cot && prop.v) {
+            const targetCode = prop.cot;
+            const existing = getActiveQuotationBundle(targetCode);
+
+            const propVendor: Vendor = {
+              id: prop.v,
+              name: prop.vn || 'Representante',
+              company: prop.vc || 'Distribuidora',
+              minOrderValue: prop.vm || 0,
+              phone: prop.vp || '',
+              deliveryDays: prop.vd || 'Entrega em 24h',
+              hasViewed: true,
+            };
+
+            const baseVendors = existing?.vendors && existing.vendors.length > 0 ? existing.vendors : vendors;
+            const vendorExists = baseVendors.some((v) => v.id === prop.v);
+            const mergedVendors = vendorExists
+              ? baseVendors.map((v) => (v.id === prop.v ? { ...v, ...propVendor, hasViewed: true } : v))
+              : [...baseVendors, propVendor];
+
+            const mergedPrices = {
+              ...(existing?.prices || prices || {}),
+              [prop.v]: {
+                ...(existing?.prices?.[prop.v] || prices?.[prop.v] || {}),
+                ...prop.prices,
+              },
+            };
+
+            const updatedBundle: QuotationBundle = {
+              quotation: existing?.quotation || quotation,
+              products: existing?.products && existing.products.length > 0 ? existing.products : products,
+              vendors: mergedVendors,
+              storeName: prop.s || existing?.storeName || currentStore?.name || 'Minha Loja',
+              storeSlug: existing?.storeSlug || currentStore?.slug || 'minha-loja',
+              prices: mergedPrices,
+              updatedAt: new Date().toISOString(),
+            };
+
+            saveQuotationBundle(updatedBundle);
+            saveQuotationToHistory(updatedBundle, currentStore?.slug);
+            saveVendorQuotationPrices(prop.v, targetCode, prop.prices, prop.vd, propVendor);
+
+            setQuotation(updatedBundle.quotation);
+            if (updatedBundle.products.length > 0) setProducts(updatedBundle.products);
+            setVendors(mergedVendors);
+            setPrices(mergedPrices);
+            setQuotationsHistory((prev) => [updatedBundle, ...prev.filter((b) => b.quotation.code !== targetCode)]);
+
+            // Sync to Supabase
+            try {
+              await saveSupplierProposalToSupabase(targetCode, updatedBundle);
+            } catch (err) {
+              console.warn('Sync import to Supabase:', err);
+            }
+
+            setCurrentUserRole('lojista');
+            setCurrentScreen('quotation');
+            setIsViewingQuotationDetail(true);
+            alert(`✅ Proposta de ${prop.vn} (${prop.vc}) sincronizada com sucesso no painel da cotação ${targetCode}!`);
+            return;
+          }
+        }
+
         const vParam = params.get('v') || params.get('vendorId');
         const cotParam = params.get('cot') || params.get('cotacao');
         const dParam = params.get('d') || params.get('data');
@@ -251,12 +322,28 @@ export default function App() {
               if (b.quotation) setQuotation(b.quotation);
               if (b.products && b.products.length > 0) setProducts(b.products);
               if (b.vendors && b.vendors.length > 0) {
-                setVendors(b.vendors);
-                if (vParam) {
-                  const matched = b.vendors.find((v) => v.id === vParam);
-                  if (matched) {
-                    setSelectedVendorId(matched.id);
-                  }
+                // If vParam is specified, make sure it is recognized
+                const matched = b.vendors.find((v) => v.id === vParam);
+                if (matched) {
+                  setSelectedVendorId(matched.id);
+                  setVendors(b.vendors);
+                } else if (vParam && (vnParam || vcParam)) {
+                  const newV: Vendor = {
+                    id: vParam,
+                    name: vnParam || 'Representante',
+                    company: vcParam || 'Distribuidora',
+                    minOrderValue: vmParam ? parseFloat(vmParam) : 0,
+                    phone: vpParam || '',
+                    deliveryDays: vdParam || 'Entrega em 24h',
+                    hasViewed: true,
+                  };
+                  const merged = [...b.vendors, newV];
+                  setVendors(merged);
+                  setSelectedVendorId(vParam);
+                  b.vendors = merged;
+                } else {
+                  setVendors(b.vendors);
+                  if (vParam) setSelectedVendorId(vParam);
                 }
               }
               if (b.prices) setPrices(b.prices);
@@ -294,7 +381,7 @@ export default function App() {
               unit: item.u,
             }));
 
-            const reconstructedVendor: Vendor = {
+            const currentVendor: Vendor = {
               id: decoded.v || vParam || 'v1',
               name: decoded.vn || vnParam || 'Representante',
               company: decoded.vc || vcParam || 'Distribuidora',
@@ -303,6 +390,32 @@ export default function App() {
               deliveryDays: decoded.vd || vdParam || 'Entrega em 24h',
               hasViewed: true,
             };
+
+            // Reconstruct all vendors list from allV or currentVendor
+            let allVendorsList: Vendor[] = [];
+            if (decoded.allV && decoded.allV.length > 0) {
+              allVendorsList = decoded.allV.map((av) => ({
+                id: av.id,
+                name: av.n,
+                company: av.c,
+                minOrderValue: av.m || 0,
+                phone: av.p || '',
+                deliveryDays: av.d || 'Entrega em 24h',
+                hasViewed: av.id === currentVendor.id,
+              }));
+            } else {
+              allVendorsList = [currentVendor];
+            }
+
+            // Check if there is an existing local bundle and merge existing vendors/prices
+            const existingBundle = getActiveQuotationBundle(decoded.cot || targetCode);
+            if (existingBundle && existingBundle.vendors && existingBundle.vendors.length > 0) {
+              existingBundle.vendors.forEach((ev) => {
+                if (!allVendorsList.some((v) => v.id === ev.id)) {
+                  allVendorsList.push(ev);
+                }
+              });
+            }
 
             const reconstructedQuotation: Quotation = {
               id: decoded.cot || 'COT-B2B',
@@ -318,16 +431,19 @@ export default function App() {
 
             setProducts(reconstructedProducts);
             setQuotation(reconstructedQuotation);
-            setVendors([reconstructedVendor]);
-            setSelectedVendorId(reconstructedVendor.id);
+            setVendors(allVendorsList);
+            setSelectedVendorId(currentVendor.id);
+
+            // Preserve existing prices from local bundle
+            const preservedPrices = existingBundle?.prices || {};
 
             const b: QuotationBundle = {
               quotation: reconstructedQuotation,
               products: reconstructedProducts,
-              vendors: [reconstructedVendor],
+              vendors: allVendorsList,
               storeName: decoded.s || sParam || 'Loja',
               storeSlug: 'loja',
-              prices: {},
+              prices: preservedPrices,
               updatedAt: new Date().toISOString(),
             };
             saveQuotationBundle(b);
@@ -418,33 +534,53 @@ export default function App() {
     }
   }, [currentStore, currentUserRole]);
 
-  // Real-time synchronization of active quotation for lojista via Supabase Realtime
+  // Real-time synchronization of active quotation for lojista via Supabase Realtime + Polling fallback
   useEffect(() => {
     if (currentUserRole === 'lojista' && quotation.code) {
+      let isMounted = true;
+
+      const handleUpdateData = (liveData: QuotationBundle) => {
+        if (!isMounted || !liveData) return;
+        if (liveData.prices) {
+          setPrices(liveData.prices);
+        }
+        if (liveData.vendors && liveData.vendors.length > 0) {
+          setVendors(liveData.vendors);
+        }
+        if (liveData.products && liveData.products.length > 0) {
+          setProducts(liveData.products);
+        }
+        saveQuotationBundle(liveData);
+        saveQuotationToHistory(liveData, currentStore?.slug);
+        setQuotationsHistory((prev) => [liveData, ...prev.filter((b) => b.quotation.code !== quotation.code)]);
+      };
+
+      let unsub: (() => void) | null = null;
       try {
-        const unsub = subscribeToQuotationRealtime(quotation.code, (liveData) => {
-          if (liveData) {
-            if (liveData.prices) {
-              setPrices(liveData.prices);
-            }
-            if (liveData.vendors && liveData.vendors.length > 0) {
-              setVendors((prev) =>
-                prev.map((v) => {
-                  const match = liveData.vendors.find((lv) => lv.id === v.id);
-                  return match
-                    ? { ...v, hasViewed: match.hasViewed, deliveryDays: match.deliveryDays || v.deliveryDays }
-                    : v;
-                })
-              );
-            }
-          }
-        });
-        return () => unsub();
+        unsub = subscribeToQuotationRealtime(quotation.code, handleUpdateData);
       } catch (err) {
         console.warn('Real-time quotation Supabase subscribe error:', err);
       }
+
+      // Polling fallback to guarantee updates even if Realtime websocket drops or table replication is off
+      const pollTimer = setInterval(async () => {
+        try {
+          const fresh = await getQuotationFromSupabase(quotation.code);
+          if (fresh) {
+            handleUpdateData(fresh);
+          }
+        } catch {
+          // ignore network hiccups
+        }
+      }, 7000);
+
+      return () => {
+        isMounted = false;
+        if (unsub) unsub();
+        clearInterval(pollTimer);
+      };
     }
-  }, [currentUserRole, quotation.code]);
+  }, [currentUserRole, quotation.code, currentStore?.slug]);
 
   // Compute dynamic market-wide optimized total
   const optimizedData = calculateOptimizedBasket(products, prices);
@@ -545,28 +681,35 @@ export default function App() {
   };
 
   const handleSupplierSubmitProposal = async (
+    submittingVendor: Vendor,
     newVendorPrices: Record<string, number | null>,
     notes: string
   ) => {
+    const targetVendorId = submittingVendor.id || selectedVendorId;
+
     // 1. Update in-memory state
     setPrices((prev) => ({
       ...prev,
-      [selectedVendorId]: {
-        ...(prev[selectedVendorId] || {}),
+      [targetVendorId]: {
+        ...(prev[targetVendorId] || {}),
         ...newVendorPrices,
       },
     }));
 
-    setVendors((prev) =>
-      prev.map((v) =>
-        v.id === selectedVendorId
-          ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
-          : v
-      )
-    );
+    setVendors((prev) => {
+      const exists = prev.some((v) => v.id === targetVendorId);
+      if (exists) {
+        return prev.map((v) =>
+          v.id === targetVendorId
+            ? { ...v, ...submittingVendor, hasViewed: true, deliveryDays: notes || v.deliveryDays }
+            : v
+        );
+      }
+      return [...prev, { ...submittingVendor, hasViewed: true, deliveryDays: notes || submittingVendor.deliveryDays }];
+    });
 
     // 2. Persist to storage
-    saveVendorQuotationPrices(selectedVendorId, quotation.code, newVendorPrices, notes);
+    saveVendorQuotationPrices(targetVendorId, quotation.code, newVendorPrices, notes, submittingVendor);
 
     // Update stack history in local state & storage
     setQuotationsHistory((prev) => {
@@ -574,16 +717,21 @@ export default function App() {
         if (b.quotation.code === quotation.code) {
           const mergedBundlePrices = {
             ...(b.prices || {}),
-            [selectedVendorId]: {
-              ...(b.prices?.[selectedVendorId] || {}),
+            [targetVendorId]: {
+              ...(b.prices?.[targetVendorId] || {}),
               ...newVendorPrices,
             },
           };
-          const mergedBundleVendors = (b.vendors || vendors).map((v) =>
-            v.id === selectedVendorId
-              ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
-              : v
-          );
+          const baseVendors = b.vendors && b.vendors.length > 0 ? b.vendors : vendors;
+          const vendorExists = baseVendors.some((v) => v.id === targetVendorId);
+          const mergedBundleVendors = vendorExists
+            ? baseVendors.map((v) =>
+                v.id === targetVendorId
+                  ? { ...v, ...submittingVendor, hasViewed: true, deliveryDays: notes || v.deliveryDays }
+                  : v
+              )
+            : [...baseVendors, { ...submittingVendor, hasViewed: true, deliveryDays: notes || submittingVendor.deliveryDays }];
+
           const updatedB: QuotationBundle = {
             ...b,
             prices: mergedBundlePrices,
@@ -605,21 +753,24 @@ export default function App() {
         const curData = await getQuotationFromSupabase(quotation.code);
         const mergedPrices = {
           ...(curData?.prices || prices || {}),
-          [selectedVendorId]: {
-            ...(curData?.prices?.[selectedVendorId] || prices?.[selectedVendorId] || {}),
+          [targetVendorId]: {
+            ...(curData?.prices?.[targetVendorId] || prices?.[targetVendorId] || {}),
             ...newVendorPrices,
           },
         };
         const baseVendors = curData?.vendors && curData.vendors.length > 0 ? curData.vendors : vendors;
-        const mergedVendors = baseVendors.map((v) =>
-          v.id === selectedVendorId
-            ? { ...v, hasViewed: true, deliveryDays: notes || v.deliveryDays }
-            : v
-        );
+        const vendorExists = baseVendors.some((v) => v.id === targetVendorId);
+        const mergedVendors = vendorExists
+          ? baseVendors.map((v) =>
+              v.id === targetVendorId
+                ? { ...v, ...submittingVendor, hasViewed: true, deliveryDays: notes || v.deliveryDays }
+                : v
+            )
+          : [...baseVendors, { ...submittingVendor, hasViewed: true, deliveryDays: notes || submittingVendor.deliveryDays }];
 
         const updatedBundle: QuotationBundle = {
           quotation: curData?.quotation || quotation,
-          products: curData?.products || products,
+          products: curData?.products && curData.products.length > 0 ? curData.products : products,
           vendors: mergedVendors,
           storeName: curData?.storeName || currentStore?.name || 'Minha Loja',
           storeSlug: curData?.storeSlug || currentStore?.slug || 'minha-loja',
@@ -627,6 +778,7 @@ export default function App() {
           updatedAt: new Date().toISOString(),
         };
 
+        saveQuotationBundle(updatedBundle);
         await saveSupplierProposalToSupabase(quotation.code, updatedBundle);
       } catch (err) {
         console.error('Error saving supplier proposal to Supabase:', err);
@@ -676,10 +828,13 @@ export default function App() {
         if (live.prices) setPrices(live.prices);
         if (live.vendors && live.vendors.length > 0) {
           const cleanVendors = live.vendors.filter(v => !['v1', 'v2', 'v3', 'v4'].includes(v.id) && !['Distribuidora Bom Preço', 'Hortifrúti Ceasa Sul', 'AgroComercial Da Terra', 'Verduras Express Ltda'].includes(v.company));
-          setVendors(cleanVendors);
+          setVendors(cleanVendors.length > 0 ? cleanVendors : live.vendors);
         }
         if (live.products && live.products.length > 0) setProducts(live.products);
         if (live.quotation) setQuotation(live.quotation);
+        saveQuotationBundle(live);
+        saveQuotationToHistory(live, currentStore?.slug);
+        setQuotationsHistory((prev) => [live, ...prev.filter((b) => b.quotation.code !== code)]);
       }
     } catch {}
   };

@@ -85,12 +85,14 @@ export const LaunchQuotationView: React.FC<Props> = ({
     return null;
   });
 
-  // Selected vendors for quotation
+  // Selected vendors for quotation - automatically includes all registered store vendors by default
   const [selectedVendorIds, setSelectedVendorIds] = useState<string[]>(() => {
+    const allIds = vendors.map((v) => v.id);
     if (savedDraft?.selectedVendorIds && savedDraft.selectedVendorIds.length > 0) {
-      return savedDraft.selectedVendorIds;
+      const merged = Array.from(new Set([...savedDraft.selectedVendorIds, ...allIds]));
+      return merged;
     }
-    return vendors.map((v) => v.id);
+    return allIds;
   });
 
   // New item inputs
@@ -114,6 +116,17 @@ export const LaunchQuotationView: React.FC<Props> = ({
       setTitle(initialTitle);
     }
   }, [initialTitle]);
+
+  // Se novos fornecedores forem cadastrados na loja, inclui-os na seleção por padrão
+  useEffect(() => {
+    if (vendors.length > 0) {
+      setSelectedVendorIds((prev) => {
+        const vendorIds = vendors.map((v) => v.id);
+        const newOnes = vendorIds.filter((id) => !prev.includes(id));
+        return newOnes.length > 0 ? [...prev, ...newOnes] : prev;
+      });
+    }
+  }, [vendors]);
 
   // AUTO-SAVE: Salva rascunho em tempo real sempre que produtos ou dados mudam
   useEffect(() => {

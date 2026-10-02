@@ -239,7 +239,8 @@ export function saveVendorQuotationPrices(
   vendorId: string,
   quotationCode: string | null | undefined,
   productPrices: Record<string, number | null>,
-  supplierNotes?: string
+  supplierNotes?: string,
+  vendorInfo?: Partial<Vendor>
 ): void {
   try {
     // 1. Update in active bundle
@@ -250,8 +251,28 @@ export function saveVendorQuotationPrices(
         ...(bundle.prices[vendorId] || {}),
         ...productPrices,
       };
-      // Mark vendor as viewed
-      bundle.vendors = bundle.vendors.map((v) => (v.id === vendorId ? { ...v, hasViewed: true } : v));
+      // Mark vendor as viewed or append if not in list
+      const vendorExists = (bundle.vendors || []).some((v) => v.id === vendorId);
+      if (vendorExists) {
+        bundle.vendors = bundle.vendors.map((v) =>
+          v.id === vendorId
+            ? { ...v, hasViewed: true, deliveryDays: supplierNotes || v.deliveryDays }
+            : v
+        );
+      } else if (vendorInfo && (vendorInfo.name || vendorInfo.company)) {
+        bundle.vendors = [
+          ...(bundle.vendors || []),
+          {
+            id: vendorId,
+            name: vendorInfo.name || 'Representante',
+            company: vendorInfo.company || 'Distribuidora',
+            minOrderValue: vendorInfo.minOrderValue || 0,
+            phone: vendorInfo.phone || '',
+            deliveryDays: supplierNotes || vendorInfo.deliveryDays || 'Entrega em 24h',
+            hasViewed: true,
+          },
+        ];
+      }
       saveQuotationBundle(bundle);
     }
 
@@ -387,6 +408,7 @@ export interface QuotingLinkPayload {
   vp?: string;      // Vendor phone
   vd?: string;      // Vendor delivery days
   p: Array<{ id?: string; n: string; q: number; u: string }>; // Products
+  allV?: Array<{ id: string; n: string; c: string; m: number; p?: string; d?: string }>; // All invited vendors
 }
 
 export function encodeQuotationPayload(payload: QuotingLinkPayload): string {
@@ -425,6 +447,55 @@ export function decodeQuotationPayload(str: string): QuotingLinkPayload | null {
   }
 }
 
+// ==========================================
+// SUPPLIER PROPOSAL SYNC PAYLOAD (WHATSAPP 1-TAP IMPORT)
+// ==========================================
+export interface SupplierProposalPayload {
+  cot: string;      // Quotation code
+  t?: string;       // Quotation title
+  s?: string;       // Store name
+  v: string;        // Vendor ID
+  vn: string;       // Vendor contact name
+  vc: string;       // Vendor company
+  vm?: number;      // Vendor min order
+  vp?: string;      // Vendor phone
+  vd?: string;      // Delivery notes
+  prices: Record<string, number | null>; // Product ID -> unit price
+  submittedAt: string;
+}
+
+export function encodeProposalPayload(payload: SupplierProposalPayload): string {
+  try {
+    const json = JSON.stringify(payload);
+    const bytes = new TextEncoder().encode(json);
+    let binary = '';
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch (e) {
+    console.error('Error encoding proposal payload:', e);
+    return '';
+  }
+}
+
+export function decodeProposalPayload(str: string): SupplierProposalPayload | null {
+  try {
+    if (!str) return null;
+    let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (b64.length % 4) b64 += '=';
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch (e) {
+    console.error('Error decoding proposal payload:', e);
+    return null;
+  }
+}
+
 /**
  * Builds a 100% resilient quotation link for suppliers.
  * Incorporates explicit query parameters (cot, v, vn, vc, vm, vd, s, sw)
@@ -435,11 +506,13 @@ export function buildSupplierQuotationLink(
   vendor: Vendor,
   products: Product[],
   storeName?: string,
-  storeWhatsApp?: string
+  storeWhatsApp?: string,
+  allVendors?: Vendor[]
 ): string {
   const origin = window.location.origin;
   const path = window.location.pathname;
   const code = quotation.code || quotation.id;
+  const vendorsList = allVendors && allVendors.length > 0 ? allVendors : [vendor];
 
   const payload: QuotingLinkPayload = {
     cot: code,
@@ -454,6 +527,14 @@ export function buildSupplierQuotationLink(
     vp: vendor.phone,
     vd: vendor.deliveryDays,
     p: products.map((p) => ({ id: p.id, n: p.name, q: p.quantity, u: p.unit })),
+    allV: vendorsList.map((v) => ({
+      id: v.id,
+      n: v.name,
+      c: v.company,
+      m: v.minOrderValue || 0,
+      p: v.phone || '',
+      d: v.deliveryDays || 'Entrega em 24h',
+    })),
   };
 
   const encoded = encodeQuotationPayload(payload);

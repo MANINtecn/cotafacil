@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Vendor, Product, Quotation } from '../types';
 import { formatCurrencyBRL, sanitizeCurrencyInput, parseCurrencyValue } from '../utils/calculations';
 import { SupplierTermsModal } from './SupplierTermsModal';
+import { encodeProposalPayload, SupplierProposalPayload } from '../utils/storeManager';
 import {
   CheckCircle2,
   Clock,
@@ -23,7 +24,7 @@ interface Props {
   storeWhatsApp?: string;
   products: Product[];
   initialPrices?: Record<string, number | null>;
-  onSubmitProposal: (prices: Record<string, number | null>, notes: string) => void;
+  onSubmitProposal: (vendor: Vendor, prices: Record<string, number | null>, notes: string) => void;
   onBackToApp?: () => void;
 }
 
@@ -100,7 +101,7 @@ export const SupplierPortalView: React.FC<Props> = ({
     }
 
     setErrorNotice(null);
-    onSubmitProposal(parsedPrices, deliveryNotes);
+    onSubmitProposal(vendor, parsedPrices, deliveryNotes);
     setIsSubmitted(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -126,13 +127,41 @@ export const SupplierPortalView: React.FC<Props> = ({
   const handleNotifyShopkeeperWhatsApp = () => {
     const rawPhone = (storeWhatsApp || '').replace(/\D/g, '');
     const cleanPhone = rawPhone.length === 10 || rawPhone.length === 11 ? `55${rawPhone}` : rawPhone;
+
+    // Build instant import URL for shopkeeper (1-tap proposal sync)
+    let syncLinkText = '';
+    try {
+      const origin = window.location.origin;
+      const path = window.location.pathname;
+      const proposalPayload: SupplierProposalPayload = {
+        cot: quotation.code,
+        t: quotation.title,
+        s: storeName,
+        v: vendor.id,
+        vn: vendor.name,
+        vc: vendor.company,
+        vm: vendor.minOrderValue,
+        vp: vendor.phone,
+        vd: deliveryNotes,
+        prices: parsedPrices,
+        submittedAt: new Date().toISOString(),
+      };
+      const encodedProp = encodeProposalPayload(proposalPayload);
+      if (encodedProp) {
+        const syncUrl = `${origin}${path}?importProp=${encodedProp}&cot=${quotation.code}`;
+        syncLinkText = `\n\n⚡ *Sincronizar no painel da loja com 1 clique:*\n${syncUrl}`;
+      }
+    } catch (e) {
+      console.warn('Sync link generation error:', e);
+    }
+
     const msg =
       `Olá, loja *${storeName}*!\n\n` +
       `Aqui é *${vendor.name}* da distribuidora *${vendor.company}*.\n` +
       `Acabei de preencher e enviar a proposta de preços para a cotação *${quotation.title}* (${quotation.code}).\n\n` +
       `📦 *Itens cotados:* ${quotedCount} de ${products.length}\n` +
       `💰 *Valor total da nossa proposta:* ${formatCurrencyBRL(totalProposal)}\n` +
-      `🚚 *Prazo de entrega informado:* ${deliveryNotes}\n\n` +
+      `🚚 *Prazo de entrega informado:* ${deliveryNotes}${syncLinkText}\n\n` +
       `Obrigado pela preferência!`;
 
     const waUrl = cleanPhone

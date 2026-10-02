@@ -31,7 +31,7 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   const getVendorLink = (vendor: Vendor) => {
-    return buildSupplierQuotationLink(quotation, vendor, products, storeName, storeWhatsApp);
+    return buildSupplierQuotationLink(quotation, vendor, products, storeName, storeWhatsApp, vendors);
   };
 
   const getDeadlineReadable = () => {

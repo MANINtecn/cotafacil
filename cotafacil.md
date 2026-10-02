@@ -128,6 +128,19 @@ Realizada auditoria técnica minuciosa em todo o código-fonte para transformar 
   - **Visualização Responsiva de Produtos no Mobile**: Reestruturação dos itens de cotação em telas móveis, garantindo que o nome do produto apareça 100% completo, sem corte ou compressão visual, com controles compactos de quantidade e exclusão.
   - **Higienização de Valores Monetários (Ponto virando vírgula)**: Implementadas funções `sanitizeCurrencyInput` e `parseCurrencyValue`, convertendo qualquer ponto digitado para vírgula e impedindo cálculos inflacionados (ex: 100.50 virando milhão).
   - **Catálogo Permanente de Produtos do Lojista**: Criado `ManageProductsModal`, seletor rápido (combobox) no lançamento de cotação, opção de salvar produtos automaticamente no catálogo fixo da loja e métricas no painel.
+- [x] **Correção Crítica: Chegada de Propostas de Múltiplos Fornecedores (02/10/2026)**:
+  - **Diagnóstico do Problema**: Quando 2 ou mais fornecedores recebiam a lista e enviavam suas propostas, apenas o 1º chegava para o lojista porque:
+    1. O link do fornecedor (`dParam`) continha apenas os dados daquele fornecedor isolado, e ao abrir o link o sistema recriava a lista sobrescrevendo o array `vendors` para conter apenas 1 fornecedor e zerava `prices: {}`.
+    2. A função `handleSupplierSubmitProposal` não recebia o objeto `vendor` do formulário, dependendo do estado solto `selectedVendorId`.
+    3. Ao salvar a proposta, o código fazia `.map` sobre os fornecedores existentes, nunca adicionando o 2º fornecedor caso ele não estivesse no array base.
+    4. A tabela `quotations` no Supabase não continha a coluna `bundle jsonb` e tinha regras RLS bloqueando inserts anônimos de lojistas/fornecedores sem autenticação Google prévia.
+  - **Solução Implementada**:
+    1. **Preservação de Múltiplos Fornecedores no Link**: Atualizado `QuotingLinkPayload` para incluir `allV` (todos os fornecedores convidados na cotação). Ao abrir o link em qualquer dispositivo, o sistema conhece todos os fornecedores participantes e preserva preços já cadastrados.
+    2. **Identificação Estrita no Envio**: `SupplierPortalView` e `handleSupplierSubmitProposal` agora transmitem o objeto do fornecedor submetente (`vendor`), garantindo que o ID exato seja atualizado sem desvios.
+    3. **Merge Aditivo de Fornecedores e Preços**: Se um fornecedor submete e não está na lista base, o sistema agora anexa o fornecedor automaticamente (`[...baseVendors, submittingVendor]`) em memória, no localStorage e no Supabase.
+    4. **Sincronização Mágica via WhatsApp (1-Tap Import)**: Ao clicar no botão *"Avisar o Lojista no WhatsApp Agora"*, a mensagem enviada ao lojista já inclui um link direto de importação (`?importProp=...`). Ao tocar no link, a proposta daquele fornecedor é imediatamente mesclada e ativada no painel da loja, mesmo se os dispositivos estiverem desconectados do banco.
+    5. **Polling Fallback em Tempo Real**: Adicionado polling a cada 7 segundos para complementar o Supabase Realtime no painel do lojista, garantindo que propostas remotas apareçam instantaneamente na tela.
+    6. **Script DDL Supabase**: Criado `supabase_fix_multi_vendor.sql` para adicionar a coluna `bundle jsonb` e permitir sincronização completa em nuvem.
 - [ ] **Ativação do Google OAuth no Supabase**: Acessar *Authentication > Providers > Google* no painel do Supabase com Client ID / Client Secret do Google Cloud Console e copiar o Callback URL do Supabase para o console do Google.
 
 
