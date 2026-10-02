@@ -215,6 +215,8 @@ export function saveQuotationBundle(bundle: QuotationBundle): void {
     localStorage.setItem(ACTIVE_QUOTATION_KEY, JSON.stringify(bundle));
     if (bundle.quotation.code) {
       localStorage.setItem(`cotafacil_bundle_${bundle.quotation.code}`, JSON.stringify(bundle));
+      const codeSlug = bundle.quotation.code.toLowerCase().replace(/[^a-z0-9]/g, '');
+      localStorage.setItem(`cotafacil_bundle_${codeSlug}`, JSON.stringify(bundle));
     }
   } catch (e) {
     console.error('Error saving quotation bundle:', e);
@@ -224,8 +226,23 @@ export function saveQuotationBundle(bundle: QuotationBundle): void {
 export function getActiveQuotationBundle(code?: string | null): QuotationBundle | null {
   try {
     if (code) {
-      const specific = localStorage.getItem(`cotafacil_bundle_${code}`);
+      const cleanDigits = code.replace(/[^0-9]/g, '');
+      const codeWithHyphen = cleanDigits ? `COT-${cleanDigits}` : code.toUpperCase();
+      const codeSlug = code.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+      const specific =
+        localStorage.getItem(`cotafacil_bundle_${code}`) ||
+        localStorage.getItem(`cotafacil_bundle_${codeSlug}`) ||
+        localStorage.getItem(`cotafacil_bundle_${codeWithHyphen}`) ||
+        localStorage.getItem(`cotafacil_bundle_${code.toUpperCase()}`);
       if (specific) return JSON.parse(specific);
+
+      const history = getStoredQuotationsHistory();
+      const found = history.find((b) => {
+        const c = (b.quotation.code || b.quotation.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return c === codeSlug || c === code.toLowerCase();
+      });
+      if (found) return found;
     }
     const raw = localStorage.getItem(ACTIVE_QUOTATION_KEY);
     if (raw) return JSON.parse(raw);
@@ -507,66 +524,26 @@ export function slugify(text: string): string {
 }
 
 /**
- * Builds a 100% resilient quotation link for suppliers.
- * Outputs clean URL: origin/[storeSlug]/[vendorSlug]?cot=...&v=...
- * Incorporates explicit query parameters (cot, v, vn, vc, vm, vd, s, sw)
- * PLUS the self-contained encoded payload 'd' as backup.
+ * Constrói link ultra-limpo, curto e profissional para o fornecedor:
+ * Formato: origin/[storeSlug]/[vendorSlug]/[codeSlug]
+ * Exemplo: cotafacil.tecx.pro/thtecx/ferrrominas/cot9345
  */
 export function buildSupplierQuotationLink(
   quotation: Quotation,
   vendor: Vendor,
-  products: Product[],
+  _products?: Product[],
   storeName?: string,
-  storeWhatsApp?: string,
-  allVendors?: Vendor[],
+  _storeWhatsApp?: string,
+  _allVendors?: Vendor[],
   storeSlug?: string
 ): string {
   const origin = window.location.origin;
   const sSlug = storeSlug || slugify(storeName || 'loja') || 'loja';
   const vSlug = slugify(vendor.company || vendor.name || vendor.id) || 'fornecedor';
-  const customPath = `/${sSlug}/${vSlug}`;
-  const code = quotation.code || quotation.id;
-  const vendorsList = allVendors && allVendors.length > 0 ? allVendors : [vendor];
+  const rawCode = quotation.code || quotation.id || 'cotacao';
+  const codeSlug = rawCode.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  const payload: QuotingLinkPayload = {
-    cot: code,
-    t: quotation.title,
-    s: storeName || 'Comércio',
-    sw: storeWhatsApp,
-    d: quotation.deadlineAt,
-    v: vendor.id,
-    vn: vendor.name,
-    vc: vendor.company,
-    vm: vendor.minOrderValue || 0,
-    vp: vendor.phone,
-    vd: vendor.deliveryDays,
-    p: products.map((p) => ({ id: p.id, n: p.name, q: p.quantity, u: p.unit })),
-    allV: vendorsList.map((v) => ({
-      id: v.id,
-      n: v.name,
-      c: v.company,
-      m: v.minOrderValue || 0,
-      p: v.phone || '',
-      d: v.deliveryDays || 'Entrega em 24h',
-    })),
-  };
-
-  const encoded = encodeQuotationPayload(payload);
-
-  const params = new URLSearchParams();
-  params.set('role', 'fornecedor');
-  params.set('cot', code);
-  params.set('v', vendor.id);
-  params.set('vn', vendor.name);
-  params.set('vc', vendor.company);
-  if (vendor.minOrderValue) params.set('vm', String(vendor.minOrderValue));
-  if (vendor.deliveryDays) params.set('vd', vendor.deliveryDays);
-  if (vendor.phone) params.set('vp', vendor.phone);
-  if (storeName) params.set('s', storeName);
-  if (storeWhatsApp) params.set('sw', storeWhatsApp);
-  if (encoded) params.set('d', encoded);
-
-  return `${origin}${customPath}?${params.toString()}`;
+  return `${origin}/${sSlug}/${vSlug}/${codeSlug}`;
 }
 
 // Sample demo data loader (optional, if user wants to see populated dashboard)

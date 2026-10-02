@@ -141,13 +141,14 @@ Realizada auditoria técnica minuciosa em todo o código-fonte para transformar 
     4. **Sincronização Mágica via WhatsApp (1-Tap Import)**: Ao clicar no botão *"Avisar o Lojista no WhatsApp Agora"*, a mensagem enviada ao lojista já inclui um link direto de importação (`?importProp=...`). Ao tocar no link, a proposta daquele fornecedor é imediatamente mesclada e ativada no painel da loja, mesmo se os dispositivos estiverem desconectados do banco.
     5. **Polling Fallback em Tempo Real**: Adicionado polling a cada 7 segundos para complementar o Supabase Realtime no painel do lojista, garantindo que propostas remotas apareçam instantaneamente na tela.
     6. **Script DDL Supabase**: Criado `supabase_fix_multi_vendor.sql` para adicionar a coluna `bundle jsonb` e permitir sincronização completa em nuvem.
-- [x] **Links Amigáveis com Slugs de Loja e Fornecedor (02/10/2026)**:
-  - **Formato Amigável e Profissional**: Os links gerados no envio de cotação via WhatsApp agora seguem a arquitetura limpa:
-    `https://cotafacil.tecx.pro/[slug-da-loja]/[slug-do-fornecedor]?cot=COT-XXXX&v=...`
-    (ex: `https://cotafacil.tecx.pro/sacolao-central/distribuidora-bom-preco?cot=COT-8942...`).
-  - **Roteamento Inteligente em SPA (`App.tsx`)**: O roteador processa dinamicamente os segmentos da URL, identifica a loja e o fornecedor tanto pelos parâmetros de busca quanto pelos caminhos (`pathStoreSlug` e `pathVendorSlug`), vinculando a proposta ao fornecedor correto de forma automática e elegante.
-  - **Função Utilitária `slugify`**: Sanitiza nomes removendo acentos, caracteres especiais e convertendo espaços para hífens.
+- [x] **Links Curtos e Ultra-Limpos com Slugs e Código da Lista (02/10/2026)**:
+  - **Formato Final Perfeito**: Eliminados todos os parâmetros gigantes de query string (`?d=...`, `?cot=...`, `?vn=...`). O link agora é 100% limpo, legível e direto:
+    `cotafacil.tecx.pro/[slug-da-loja]/[slug-do-fornecedor]/[codigo-da-cotação]`
+    (ex: `cotafacil.tecx.pro/thtecx/ferrrominas/cot9345`).
+  - **Identificação e Resolução Automática**: Ao abrir o link em qualquer celular ou navegador, o sistema extrai os 3 segmentos da rota, busca a cotação no Supabase e no cache local aceitando variações (com e sem traço), vincula o fornecedor automaticamente pelo slug e abre direto o portal de preenchimento.
+  - **Função Utilitária `slugify`**: Sanitiza nomes de lojas e fornecedores removendo acentos e caracteres especiais para formar URLs perfeitas.
 - [ ] **Ativação do Google OAuth no Supabase**: Acessar *Authentication > Providers > Google* no painel do Supabase com Client ID / Client Secret do Google Cloud Console e copiar o Callback URL do Supabase para o console do Google.
+
 
 
 

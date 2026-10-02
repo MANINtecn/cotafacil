@@ -147,23 +147,53 @@ export async function saveQuotationToSupabase(bundle: QuotationBundle, userId?: 
 }
 
 /**
- * Buscar bundle de cotação pelo código
+ * Buscar bundle de cotação pelo código (aceita 'cot9345', 'COT-9345', 'COT9345')
  */
 export async function getQuotationFromSupabase(code: string): Promise<QuotationBundle | null> {
   try {
-    const { data, error } = await supabase
+    // 1. Busca exata direta
+    const { data } = await supabase
       .from('quotations')
       .select('*')
       .eq('code', code)
       .maybeSingle();
 
-    if (error) {
-      console.warn('Erro ao buscar cotação no Supabase:', error.message);
-      return null;
-    }
-
     if (data && data.bundle) {
       return data.bundle as QuotationBundle;
+    }
+
+    // 2. Variações comuns (com traço, sem traço, maiúsculas/minúsculas)
+    const cleanDigits = code.replace(/[^0-9]/g, '');
+    const codeWithHyphen = cleanDigits ? `COT-${cleanDigits}` : code.toUpperCase();
+    const codeWithoutHyphen = cleanDigits ? `COT${cleanDigits}` : code.toUpperCase();
+
+    const { data: altData } = await supabase
+      .from('quotations')
+      .select('*')
+      .or(`code.eq.${codeWithHyphen},code.eq.${codeWithoutHyphen},code.ilike.${code}`)
+      .maybeSingle();
+
+    if (altData && altData.bundle) {
+      return altData.bundle as QuotationBundle;
+    }
+
+    // 3. Fallback: buscar nas cotações mais recentes
+    const { data: recents } = await supabase
+      .from('quotations')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(25);
+
+    if (recents && recents.length > 0) {
+      const cleanTarget = code.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const found = recents.find((r) => {
+        const c = (r.code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const bc = (r.bundle?.quotation?.code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        return c === cleanTarget || (cleanDigits && c.includes(cleanDigits)) || (cleanDigits && bc.includes(cleanDigits));
+      });
+      if (found && found.bundle) {
+        return found.bundle as QuotationBundle;
+      }
     }
 
     return null;
@@ -181,19 +211,24 @@ export function subscribeToQuotationRealtime(
   onUpdate: (bundle: QuotationBundle) => void
 ): () => void {
   try {
+    const cleanDigits = code.replace(/[^0-9]/g, '');
+    const cleanSlug = code.toLowerCase().replace(/[^a-z0-9]/g, '');
+
     const channel: RealtimeChannel = supabase
-      .channel(`quotation-${code}`)
+      .channel(`quotation-${cleanSlug}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'quotations',
-          filter: `code=eq.${code}`,
         },
         (payload) => {
           if (payload.new && (payload.new as any).bundle) {
-            onUpdate((payload.new as any).bundle as QuotationBundle);
+            const rowCode = ((payload.new as any).code || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (rowCode === cleanSlug || (cleanDigits && rowCode.includes(cleanDigits))) {
+              onUpdate((payload.new as any).bundle as QuotationBundle);
+            }
           }
         }
       )

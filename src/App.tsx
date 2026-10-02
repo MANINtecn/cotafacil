@@ -280,28 +280,41 @@ export default function App() {
           }
         }
 
-        // Extract path segments for clean branded URLs: origin/[storeSlug]/[vendorSlug]
+        // Extract path segments for clean branded URLs: origin/[storeSlug]/[vendorSlug]/[codeSlug]
         const segments = window.location.pathname.split('/').filter(Boolean);
         let pathStoreSlug = '';
         let pathVendorSlug = '';
+        let pathQuotationCode = '';
 
-        if (segments.length >= 2) {
+        if (segments.length >= 3) {
           if (segments[0] === 'loja' && segments[2] === 'fornecedor') {
             pathStoreSlug = segments[1];
             pathVendorSlug = segments[3] || '';
+            pathQuotationCode = segments[4] || '';
           } else if (segments[0] === 'cotacao') {
             pathStoreSlug = segments[1];
             pathVendorSlug = segments[2] || '';
+            pathQuotationCode = segments[3] || '';
           } else if (!['admin', 'super-admin'].includes(segments[0].toLowerCase())) {
             pathStoreSlug = segments[0];
             pathVendorSlug = segments[1];
+            pathQuotationCode = segments[2];
+          }
+        } else if (segments.length === 2) {
+          if (!['admin', 'super-admin'].includes(segments[0].toLowerCase())) {
+            pathStoreSlug = segments[0];
+            if (/^cot[-0-9]/i.test(segments[1])) {
+              pathQuotationCode = segments[1];
+            } else {
+              pathVendorSlug = segments[1];
+            }
           }
         } else if (segments.length === 1 && !['admin', 'super-admin'].includes(segments[0].toLowerCase())) {
           pathStoreSlug = segments[0];
         }
 
-        const vParam = params.get('v') || params.get('vendorId') || pathVendorSlug;
-        const cotParam = params.get('cot') || params.get('cotacao');
+        const vParam = params.get('v') || params.get('vendorId');
+        const cotParam = pathQuotationCode || params.get('cot') || params.get('cotacao');
         const dParam = params.get('d') || params.get('data');
         const vnParam = params.get('vn');
         const vcParam = params.get('vc');
@@ -311,7 +324,7 @@ export default function App() {
         const sParam = params.get('s') || pathStoreSlug;
         const swParam = params.get('sw');
 
-        const isSupplierAccess = roleParam === 'fornecedor' || Boolean(vParam) || Boolean(dParam) || Boolean(pathVendorSlug);
+        const isSupplierAccess = roleParam === 'fornecedor' || Boolean(vParam) || Boolean(dParam) || Boolean(pathVendorSlug) || Boolean(pathQuotationCode);
 
         // Se for acesso direto do lojista pela URL de sua loja (ex: cotafacil.tecx.pro/loja-modelo)
         if (segments.length === 1 && pathStoreSlug && !isSupplierAccess && !cotParam) {
@@ -356,11 +369,14 @@ export default function App() {
           });
         }
 
-        // 1. Fetch from Supabase by quotation code if cotParam exists (works across all browsers/devices)
+        // 1. Fetch from Supabase by quotation code if targetCode exists (works across all browsers/devices)
         const targetCode = cotParam || (dParam ? decodeQuotationPayload(dParam)?.cot : null);
         if (targetCode) {
           try {
-            const b = await getQuotationFromSupabase(targetCode);
+            let b = await getQuotationFromSupabase(targetCode);
+            if (!b) {
+              b = getActiveQuotationBundle(targetCode);
+            }
             if (b) {
               if (b.quotation) setQuotation(b.quotation);
               if (b.products && b.products.length > 0) setProducts(b.products);
@@ -376,9 +392,9 @@ export default function App() {
                 if (matched) {
                   setSelectedVendorId(matched.id);
                   setVendors(b.vendors);
-                } else if (vParam && (vnParam || vcParam || pathVendorSlug)) {
+                } else if (pathVendorSlug || vParam) {
                   const newV: Vendor = {
-                    id: vParam,
+                    id: vParam || pathVendorSlug,
                     name: vnParam || (pathVendorSlug ? pathVendorSlug.replace(/-/g, ' ') : 'Representante'),
                     company: vcParam || (pathVendorSlug ? pathVendorSlug.replace(/-/g, ' ') : 'Distribuidora'),
                     minOrderValue: vmParam ? parseFloat(vmParam) : 0,
@@ -388,11 +404,11 @@ export default function App() {
                   };
                   const merged = [...b.vendors, newV];
                   setVendors(merged);
-                  setSelectedVendorId(vParam);
+                  setSelectedVendorId(newV.id);
                   b.vendors = merged;
                 } else {
                   setVendors(b.vendors);
-                  if (vParam) setSelectedVendorId(vParam);
+                  setSelectedVendorId(b.vendors[0]?.id || 'v1');
                 }
               }
               if (b.prices) setPrices(b.prices);
