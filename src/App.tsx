@@ -61,6 +61,7 @@ import {
   decodeQuotationPayload,
   decodeProposalPayload,
   SupplierProposalPayload,
+  slugify,
   buildSupplierQuotationLink,
   QuotationBundle,
   getStoredCatalogProducts,
@@ -279,7 +280,27 @@ export default function App() {
           }
         }
 
-        const vParam = params.get('v') || params.get('vendorId');
+        // Extract path segments for clean branded URLs: origin/[storeSlug]/[vendorSlug]
+        const segments = window.location.pathname.split('/').filter(Boolean);
+        let pathStoreSlug = '';
+        let pathVendorSlug = '';
+
+        if (segments.length >= 2) {
+          if (segments[0] === 'loja' && segments[2] === 'fornecedor') {
+            pathStoreSlug = segments[1];
+            pathVendorSlug = segments[3] || '';
+          } else if (segments[0] === 'cotacao') {
+            pathStoreSlug = segments[1];
+            pathVendorSlug = segments[2] || '';
+          } else if (!['admin', 'super-admin'].includes(segments[0].toLowerCase())) {
+            pathStoreSlug = segments[0];
+            pathVendorSlug = segments[1];
+          }
+        } else if (segments.length === 1 && !['admin', 'super-admin'].includes(segments[0].toLowerCase())) {
+          pathStoreSlug = segments[0];
+        }
+
+        const vParam = params.get('v') || params.get('vendorId') || pathVendorSlug;
         const cotParam = params.get('cot') || params.get('cotacao');
         const dParam = params.get('d') || params.get('data');
         const vnParam = params.get('vn');
@@ -287,10 +308,23 @@ export default function App() {
         const vmParam = params.get('vm');
         const vdParam = params.get('vd');
         const vpParam = params.get('vp');
-        const sParam = params.get('s');
+        const sParam = params.get('s') || pathStoreSlug;
         const swParam = params.get('sw');
 
-        const isSupplierAccess = roleParam === 'fornecedor' || Boolean(vParam) || Boolean(dParam);
+        const isSupplierAccess = roleParam === 'fornecedor' || Boolean(vParam) || Boolean(dParam) || Boolean(pathVendorSlug);
+
+        // Se for acesso direto do lojista pela URL de sua loja (ex: cotafacil.tecx.pro/loja-modelo)
+        if (segments.length === 1 && pathStoreSlug && !isSupplierAccess && !cotParam) {
+          const matchedStore = getStoredStores().find(
+            (s) => s.slug.toLowerCase() === pathStoreSlug.toLowerCase() || slugify(s.name) === pathStoreSlug.toLowerCase()
+          );
+          if (matchedStore) {
+            setCurrentStore(matchedStore);
+            setCurrentUserRole('lojista');
+            setCurrentScreen('quotation');
+            return;
+          }
+        }
 
         if (!isSupplierAccess && !cotParam) {
           return;
@@ -302,11 +336,20 @@ export default function App() {
           if (vParam) setSelectedVendorId(vParam);
         }
 
-        if (vnParam || vcParam) {
+        if (pathStoreSlug && !currentStore) {
+          const matchedStore = getStoredStores().find(
+            (s) => s.slug.toLowerCase() === pathStoreSlug.toLowerCase() || slugify(s.name) === pathStoreSlug.toLowerCase()
+          );
+          if (matchedStore) {
+            setCurrentStore(matchedStore);
+          }
+        }
+
+        if (vnParam || vcParam || pathVendorSlug) {
           setUrlVendorInfo({
             id: vParam || 'v1',
-            name: vnParam || 'Representante',
-            company: vcParam || 'Distribuidora',
+            name: vnParam || (pathVendorSlug ? pathVendorSlug.replace(/-/g, ' ') : 'Representante'),
+            company: vcParam || (pathVendorSlug ? pathVendorSlug.replace(/-/g, ' ') : 'Distribuidora'),
             minOrderValue: vmParam ? parseFloat(vmParam) : 0,
             phone: vpParam || '',
             deliveryDays: vdParam || 'Entrega em 24h',
@@ -322,16 +365,22 @@ export default function App() {
               if (b.quotation) setQuotation(b.quotation);
               if (b.products && b.products.length > 0) setProducts(b.products);
               if (b.vendors && b.vendors.length > 0) {
-                // If vParam is specified, make sure it is recognized
-                const matched = b.vendors.find((v) => v.id === vParam);
+                // If vParam or pathVendorSlug is specified, match by ID or slug
+                const matched = b.vendors.find(
+                  (v) =>
+                    v.id === vParam ||
+                    slugify(v.company) === pathVendorSlug ||
+                    slugify(v.name) === pathVendorSlug ||
+                    slugify(v.id) === pathVendorSlug
+                );
                 if (matched) {
                   setSelectedVendorId(matched.id);
                   setVendors(b.vendors);
-                } else if (vParam && (vnParam || vcParam)) {
+                } else if (vParam && (vnParam || vcParam || pathVendorSlug)) {
                   const newV: Vendor = {
                     id: vParam,
-                    name: vnParam || 'Representante',
-                    company: vcParam || 'Distribuidora',
+                    name: vnParam || (pathVendorSlug ? pathVendorSlug.replace(/-/g, ' ') : 'Representante'),
+                    company: vcParam || (pathVendorSlug ? pathVendorSlug.replace(/-/g, ' ') : 'Distribuidora'),
                     minOrderValue: vmParam ? parseFloat(vmParam) : 0,
                     phone: vpParam || '',
                     deliveryDays: vdParam || 'Entrega em 24h',
@@ -351,7 +400,7 @@ export default function App() {
                 setCurrentStore({
                   id: 'store-active',
                   name: b.storeName,
-                  slug: b.storeSlug || 'loja',
+                  slug: b.storeSlug || pathStoreSlug || 'loja',
                   contactPerson: 'Lojista',
                   email: '',
                   whatsapp: swParam || '',
@@ -383,8 +432,8 @@ export default function App() {
 
             const currentVendor: Vendor = {
               id: decoded.v || vParam || 'v1',
-              name: decoded.vn || vnParam || 'Representante',
-              company: decoded.vc || vcParam || 'Distribuidora',
+              name: decoded.vn || vnParam || (pathVendorSlug ? pathVendorSlug.replace(/-/g, ' ') : 'Representante'),
+              company: decoded.vc || vcParam || (pathVendorSlug ? pathVendorSlug.replace(/-/g, ' ') : 'Distribuidora'),
               minOrderValue: decoded.vm || 0,
               phone: decoded.vp || vpParam || '',
               deliveryDays: decoded.vd || vdParam || 'Entrega em 24h',
@@ -432,7 +481,14 @@ export default function App() {
             setProducts(reconstructedProducts);
             setQuotation(reconstructedQuotation);
             setVendors(allVendorsList);
-            setSelectedVendorId(currentVendor.id);
+
+            const matchedInAll = allVendorsList.find(
+              (v) =>
+                v.id === currentVendor.id ||
+                slugify(v.company) === pathVendorSlug ||
+                slugify(v.name) === pathVendorSlug
+            );
+            setSelectedVendorId(matchedInAll ? matchedInAll.id : currentVendor.id);
 
             // Preserve existing prices from local bundle
             const preservedPrices = existingBundle?.prices || {};
@@ -442,7 +498,7 @@ export default function App() {
               products: reconstructedProducts,
               vendors: allVendorsList,
               storeName: decoded.s || sParam || 'Loja',
-              storeSlug: 'loja',
+              storeSlug: pathStoreSlug || 'loja',
               prices: preservedPrices,
               updatedAt: new Date().toISOString(),
             };
@@ -1514,6 +1570,7 @@ export default function App() {
             productsCount={dispatchQuotationData.productsCount}
             products={dispatchQuotationData.products}
             vendors={dispatchQuotationData.vendors}
+            storeSlug={currentStore?.slug}
           />
         )}
 

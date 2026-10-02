@@ -496,8 +496,19 @@ export function decodeProposalPayload(str: string): SupplierProposalPayload | nu
   }
 }
 
+export function slugify(text: string): string {
+  if (!text) return '';
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '') || 'geral';
+}
+
 /**
  * Builds a 100% resilient quotation link for suppliers.
+ * Outputs clean URL: origin/[storeSlug]/[vendorSlug]?cot=...&v=...
  * Incorporates explicit query parameters (cot, v, vn, vc, vm, vd, s, sw)
  * PLUS the self-contained encoded payload 'd' as backup.
  */
@@ -507,10 +518,13 @@ export function buildSupplierQuotationLink(
   products: Product[],
   storeName?: string,
   storeWhatsApp?: string,
-  allVendors?: Vendor[]
+  allVendors?: Vendor[],
+  storeSlug?: string
 ): string {
   const origin = window.location.origin;
-  const path = window.location.pathname;
+  const sSlug = storeSlug || slugify(storeName || 'loja') || 'loja';
+  const vSlug = slugify(vendor.company || vendor.name || vendor.id) || 'fornecedor';
+  const customPath = `/${sSlug}/${vSlug}`;
   const code = quotation.code || quotation.id;
   const vendorsList = allVendors && allVendors.length > 0 ? allVendors : [vendor];
 
@@ -552,7 +566,7 @@ export function buildSupplierQuotationLink(
   if (storeWhatsApp) params.set('sw', storeWhatsApp);
   if (encoded) params.set('d', encoded);
 
-  return `${origin}${path}?${params.toString()}`;
+  return `${origin}${customPath}?${params.toString()}`;
 }
 
 // Sample demo data loader (optional, if user wants to see populated dashboard)

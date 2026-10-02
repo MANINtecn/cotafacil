@@ -12,6 +12,7 @@ interface Props {
   productsCount: number;
   products?: Product[];
   vendors: Vendor[];
+  storeSlug?: string;
 }
 
 export const WhatsAppDispatchModal: React.FC<Props> = ({
@@ -23,6 +24,7 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
   productsCount,
   products = [],
   vendors,
+  storeSlug,
 }) => {
   const [openedVendors, setOpenedVendors] = useState<string[]>([]);
   const [copiedVendorId, setCopiedVendorId] = useState<string | null>(null);
@@ -31,7 +33,7 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   const getVendorLink = (vendor: Vendor) => {
-    return buildSupplierQuotationLink(quotation, vendor, products, storeName, storeWhatsApp, vendors);
+    return buildSupplierQuotationLink(quotation, vendor, products, storeName, storeWhatsApp, vendors, storeSlug);
   };
 
   const getDeadlineReadable = () => {
