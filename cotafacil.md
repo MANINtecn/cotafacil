@@ -103,6 +103,112 @@ Realizada auditoria técnica minuciosa em todo o código-fonte para transformar 
 
 ---
 
+## 📅 Registro - 02/10/2026
+
+### 📜 Regra de Ouro TECX: Registro Rigoroso no Diário de Bordo
+* **Diretriz Absoluta**: Toda melhoria, refatoração, ajuste de fluxo, correção de bugs, alterações de links/rotas e novas funcionalidades **DEVEM** ser registradas detalhadamente e de forma clara neste documento (`cotafacil.md`).
+* **Objetivo**: Garantir rastreabilidade técnica total, transparência das decisões de arquitetura e histórico contínuo para manutenção e escalabilidade da plataforma.
+
+---
+
+### 🛡️ 1. Termos de Uso de Dados dos Fornecedores, Privacidade e LGPD
+* **Contexto**: Para futuras parcerias comerciais, match regional de cotações e indicação de novos lojistas parceiros aos fornecedores cadastrados na plataforma.
+* **Implementação**:
+  - Adicionado checkbox de consentimento expresso e obrigatório no portal do fornecedor (`SupplierPortalView.tsx`).
+  - Criado o modal `DataTermsModal` com explicação transparente, didática e em conformidade com a LGPD sobre a finalidade da coleta de dados (nome, empresa, telefone, histórico de atendimento).
+  - O fornecedor tem clareza de que seus dados de contato podem ser promovidos para novos lojistas da sua região, impulsionando suas vendas.
+
+---
+
+### 🍪 2. Banner e Modal de Gestão de Cookies e Armazenamento Local
+* **Implementação**:
+  - Desenvolvido o componente `CookieConsentModal.tsx` integrado no rodapé da aplicação.
+  - Explicação 100% amigável de que a plataforma utiliza armazenamento local seguro (`localStorage`) e cookies essenciais para manter o lojista conectado, preservar rascunhos de cotação e garantir máxima velocidade em conexões móveis fracas.
+  - Opções claras de "Entendido / Aceitar" e link para consultar os detalhes de privacidade.
+
+---
+
+### 💾 3. Rascunhos Persistentes de Cotação (Auto-Save & Recuperação Automática)
+* **Problema Resolvido**: Lojistas perdiam listas longas caso o celular descarregasse, o navegador fosse fechado acidentalmente ou houvesse oscilação de sinal.
+* **Implementação**:
+  - Criadas as funções `saveQuotationDraft`, `getQuotationDraft` e `clearQuotationDraft` em `storeManager.ts`.
+  - Salvamento contínuo e silencioso a cada produto adicionado ou editado no `LaunchQuotationView.tsx`.
+  - Ao reabrir a tela de lançamento, se houver um rascunho salvo, o app exibe um card de alerta destacado: *"Rascunho recuperado automaticamente"*, com botão para continuar de onde parou ou descartar com 1 clique.
+
+---
+
+### 📱 4. Visualização Responsiva de Produtos no Mobile
+* **Problema Resolvido**: Em telas de smartphones (360px - 414px), os nomes dos produtos eram cortados ou esmagavam os campos de quantidade e botões de ação.
+* **Implementação**:
+  - Reestruturação do layout dos itens na lista de lançamento em `LaunchQuotationView.tsx`.
+  - O título e descrição do produto agora ocupam uma linha inteira destacada no topo do card, sem corte de texto (`break-words`).
+  - Os seletores de quantidade, unidade e o botão de exclusão foram organizados em uma sub-barra inferior compacta e ergonômica para toque com o polegar.
+
+---
+
+### 💵 5. Higienização de Valores Monetários (Ponto virando vírgula)
+* **Problema Resolvido**: No teclado numérico de vários celulares Android/iOS, o usuário digitava ponto em vez de vírgula (ex: `10.50`), o que em alguns parsers inflacionava o número (ex: virava `1050` ou milhão), distorcendo totalmente a proposta.
+* **Implementação**:
+  - Criadas as funções utilitárias `sanitizeCurrencyInput` e `parseCurrencyValue` em `storeManager.ts`.
+  - Se o fornecedor ou lojista digitar ponto, o caractere é instantaneamente convertido em vírgula no campo.
+  - O cálculo do total e do pedido mínimo calcula os decimais com precisão matemática em centavos.
+
+---
+
+### 📦 6. Catálogo Fixo de Produtos da Loja (Persistência & Combobox)
+* **Problema Resolvido**: Toda cotação obrigava o lojista a digitar os nomes dos mesmos produtos repetidamente (arroz, feijão, óleo, etc.).
+* **Implementação**:
+  - Criado o componente `ManageProductsModal.tsx` acessível pelo menu superior do lojista.
+  - Implementado combobox com auto-complete no campo de nome do produto no lançamento de cotação.
+  - Adicionado toggle: *"Salvar novos produtos automaticamente no catálogo fixo da loja"*.
+  - Exibição de métrica de "Itens no Catálogo" no card de resumo da loja.
+
+---
+
+### 🚨 7. Correção Crítica: Recebimento de Propostas de Múltiplos Fornecedores Simultâneos
+* **Diagnóstico Profundo do Problema**:
+  - Quando 2 fornecedores recebiam a mesma cotação e enviavam suas propostas, apenas o 1º chegava para o lojista.
+  - Motivo 1: O payload codificado no link (`dParam`) continha apenas os dados daquele fornecedor isolado, sobrescrevendo a lista de `vendors` para apenas 1 elemento e resetando o objeto `prices`.
+  - Motivo 2: `handleSupplierSubmitProposal` dependia de um `selectedVendorId` solto no estado em vez de receber o fornecedor concreto.
+  - Motivo 3: Na persistência, o sistema fazia `.map` na lista existente; se o segundo fornecedor não constasse no array inicial do cliente, ele era descartado.
+  - Motivo 4: A tabela `quotations` no Supabase não continha a coluna `bundle jsonb` e regras RLS bloqueavam inserções de usuários anônimos.
+* **Solução Completa Implementada**:
+  - **Preservação de Múltiplos Fornecedores**: O payload da cotação agora transporta o array `allV` com todos os fornecedores convidados.
+  - **Identificação Estrita**: O envio da proposta transmite explicitamente o objeto do fornecedor submetente (`vendor`).
+  - **Merge Aditivo**: Se o fornecedor submetente não estiver na lista base do receptor, ele é anexado dinamicamente (`[...baseVendors, submittingVendor]`).
+  - **Sincronização Mágica via WhatsApp (1-Tap Sync)**: A mensagem gerada ao fornecedor no botão *"Avisar o Lojista no WhatsApp Agora"* inclui link com payload instantâneo (`?importProp=...`). Ao tocar no link, o lojista tem os preços daquele fornecedor injetados na hora mesmo sem internet prévia.
+  - **Polling Fallback**: Adicionado ciclo de polling a cada 7 segundos para garantir atualização em tempo real caso WebSockets sejam bloqueados em conexões móveis.
+  - **Script DDL Supabase**: Criado `supabase_fix_multi_vendor.sql` com adição de `bundle jsonb`, remoção de bloqueio de RLS e publicação Realtime.
+
+---
+
+### 🔗 8. Links Curtos, Limpos e Elegantes (Slug de Loja + Slug de Fornecedor + Código da Lista)
+* **Problema Identificado**:
+  - Os links de cotação enviados aos fornecedores no WhatsApp continham strings base64 enormes (`?d=...`) e múltiplos parâmetros de query string, gerando mensagens poluídas e links com mais de 1.000 caracteres.
+  - O lojista gera múltiplas cotações e precisa de diferenciação por lista para o mesmo fornecedor.
+* **Formato Arquitetado e Implementado**:
+  ```text
+  cotafacil.tecx.pro/[slug-da-loja]/[slug-do-fornecedor]/[codigo-da-cotação]
+  ```
+  - **Exemplo Real**: `cotafacil.tecx.pro/thtecx/ferrrominas/cot9345`
+  - Tamanho médio do link: ~50 caracteres (redução de 95% no comprimento!).
+* **Detalhes Técnicos da Implementação**:
+  1. **Utilitário `slugify` (`storeManager.ts`)**:
+     - Converte nomes como *"Distribuidora Bom Preço"* para `distribuidora-bom-preco` e nomes de lojas para slugs amigáveis.
+  2. **Gerador `buildSupplierQuotationLink` (`storeManager.ts`)**:
+     - Retorna `${origin}/${storeSlug}/${vendorSlug}/${codeSlug}` sem nenhuma query string desnecessária.
+     - O código da lista é sanitizado para minúsculas sem pontuação (ex: `COT-9345` ➔ `cot9345`).
+  3. **Roteamento SPA em 3 Níveis (`App.tsx`)**:
+     - Extrai `segments[0]` (loja), `segments[1]` (fornecedor) e `segments[2]` (código da cotação).
+     - Identifica e pré-seleciona o fornecedor ativo pelo slug da distribuidora (`slugify(company)`).
+     - Carrega a tela do portal do fornecedor já apontando para a cotação e distribuidora corretas.
+  4. **Busca Flexível e Resiliente no Supabase & LocalStorage (`supabase.ts` e `storeManager.ts`)**:
+     - `getQuotationFromSupabase`: Realiza busca inteligente comparando tanto o formato limpo (`cot9345`) quanto as variações com traço (`COT-9345` e `COT9345`), garantindo carregamento instantâneo em qualquer navegador.
+     - `subscribeToQuotationRealtime`: Normaliza o canal Realtime para escutar atualizações da cotação independente da formatação do código.
+     - `getActiveQuotationBundle`: Faz cache local duplo (com código original e slug limpo), garantindo abertura imediata.
+
+---
+
 ## 🎯 Próximos Passos (Roadmap)
 - [x] Clone e configuração local do repositório `MANINtecn/cotafacil`.
 - [x] Diagnóstico do erro de autenticação e análise de viabilidade de custos.
