@@ -12,7 +12,8 @@ import {
   History,
   Phone,
   ArrowRight,
-  CreditCard
+  CreditCard,
+  Package
 } from 'lucide-react';
 
 interface Props {
@@ -20,8 +21,10 @@ interface Props {
   quotations: QuotationBundle[];
   vendors: Vendor[];
   ordersCount: number;
+  catalogProductsCount?: number;
   onNewQuotation: () => void;
   onOpenManageVendors: () => void;
+  onOpenManageProducts?: () => void;
   onOpenHistory: () => void;
   onOpenOrders: () => void;
   onOpenBilling?: () => void;
@@ -32,8 +35,10 @@ export const ShopkeeperHomeOverview: React.FC<Props> = ({
   quotations,
   vendors,
   ordersCount,
+  catalogProductsCount = 0,
   onNewQuotation,
   onOpenManageVendors,
+  onOpenManageProducts,
   onOpenHistory,
   onOpenOrders,
   onOpenBilling,
@@ -123,7 +128,7 @@ export const ShopkeeperHomeOverview: React.FC<Props> = ({
         </div>
 
         {/* 2. Key Store Metrics Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-3 border-t border-neutral-800/80 relative z-10">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 pt-3 border-t border-neutral-800/80 relative z-10">
           <div className="p-3.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-1">
             <div className="flex items-center gap-1.5 text-neutral-400 text-[11px] font-extrabold uppercase tracking-wider">
               <Layers className="w-3.5 h-3.5 text-emerald-400" />
@@ -150,6 +155,22 @@ export const ShopkeeperHomeOverview: React.FC<Props> = ({
             </div>
             <span className="text-[10px] text-neutral-400 block truncate hover:text-white">
               {vendors.length === 1 ? '1 cadastrado (gerenciar)' : `${vendors.length} cadastrados (gerenciar)`}
+            </span>
+          </div>
+
+          <div
+            onClick={onOpenManageProducts}
+            className="p-3.5 rounded-2xl bg-neutral-900/90 border border-neutral-800 space-y-1 cursor-pointer hover:border-neutral-700 transition-colors"
+          >
+            <div className="flex items-center gap-1.5 text-neutral-400 text-[11px] font-extrabold uppercase tracking-wider">
+              <Package className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Catálogo</span>
+            </div>
+            <div className="text-xl sm:text-2xl font-black font-mono-num text-white">
+              {catalogProductsCount}
+            </div>
+            <span className="text-[10px] text-neutral-400 block truncate hover:text-white">
+              {catalogProductsCount === 1 ? '1 item (gerenciar)' : `${catalogProductsCount} itens (gerenciar)`}
             </span>
           </div>
 

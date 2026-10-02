@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Vendor, Product, Quotation } from '../types';
-import { formatCurrencyBRL } from '../utils/calculations';
+import { formatCurrencyBRL, sanitizeCurrencyInput, parseCurrencyValue } from '../utils/calculations';
+import { SupplierTermsModal } from './SupplierTermsModal';
 import {
   CheckCircle2,
   Clock,
@@ -11,7 +12,8 @@ import {
   AlertCircle,
   MessageCircle,
   RotateCcw,
-  Store
+  Store,
+  ShieldCheck
 } from 'lucide-react';
 
 interface Props {
@@ -41,6 +43,8 @@ export const SupplierPortalView: React.FC<Props> = ({
   const [deliveryNotes, setDeliveryNotes] = useState(vendor.deliveryDays || 'Entrega em 24h');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
+  const [acceptedDataTerms, setAcceptedDataTerms] = useState(true);
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
 
   useEffect(() => {
     if (vendor.deliveryDays) {
@@ -48,17 +52,17 @@ export const SupplierPortalView: React.FC<Props> = ({
     }
   }, [vendor.deliveryDays]);
 
-  // Calculate parsed numerical prices
+  // Calculate parsed numerical prices using robust currency parser (dot converted to comma)
   const parsedPrices: Record<string, number | null> = {};
   let totalProposal = 0;
   let quotedCount = 0;
 
   products.forEach((p) => {
     const raw = pricesState[p.id] || '';
-    const num = parseFloat(raw.replace(/\./g, '').replace(',', '.'));
-    if (!isNaN(num) && num > 0) {
-      parsedPrices[p.id] = Math.round(num * 100) / 100;
-      totalProposal += parsedPrices[p.id]! * p.quantity;
+    const num = parseCurrencyValue(raw);
+    if (num > 0) {
+      parsedPrices[p.id] = num;
+      totalProposal += num * p.quantity;
       quotedCount += 1;
     } else {
       parsedPrices[p.id] = null;
@@ -72,8 +76,8 @@ export const SupplierPortalView: React.FC<Props> = ({
   const minPercent = minOrder > 0 ? Math.min(100, Math.round((totalProposal / minOrder) * 100)) : 100;
 
   const handlePriceChange = (productId: string, value: string) => {
-    // Only allow numbers and one comma/dot
-    const clean = value.replace(/[^0-9.,]/g, '');
+    // Sanitiza garantindo que ponto digitado vira vírgula e bloqueia caracteres inválidos
+    const clean = sanitizeCurrencyInput(value);
     setPricesState((prev) => ({
       ...prev,
       [productId]: clean,
@@ -87,6 +91,11 @@ export const SupplierPortalView: React.FC<Props> = ({
     if (e) e.preventDefault();
     if (quotedCount === 0) {
       setErrorNotice('Informe o preço de pelo menos um produto antes de enviar a proposta.');
+      return;
+    }
+
+    if (!acceptedDataTerms) {
+      setErrorNotice('Você precisa aceitar os termos de consentimento de uso de dados comerciais para continuar.');
       return;
     }
 
@@ -296,8 +305,8 @@ export const SupplierPortalView: React.FC<Props> = ({
                 <div className="space-y-3">
                   {products.map((product, index) => {
                     const priceRaw = pricesState[product.id] || '';
-                    const parsed = parseFloat(priceRaw.replace(/\./g, '').replace(',', '.'));
-                    const validPrice = !isNaN(parsed) && parsed > 0 ? parsed : null;
+                    const parsed = parseCurrencyValue(priceRaw);
+                    const validPrice = parsed > 0 ? parsed : null;
                     const subtotal = validPrice !== null ? validPrice * product.quantity : null;
 
                     return (
@@ -470,6 +479,29 @@ export const SupplierPortalView: React.FC<Props> = ({
                 />
               </div>
 
+              {/* Termos de Uso de Dados Comerciais para Fornecedores & Futura Divulgação */}
+              <div className="pt-2 border-t border-neutral-100 space-y-2">
+                <label className="flex items-start gap-2.5 cursor-pointer text-[11px] text-neutral-700 hover:text-neutral-950 leading-snug">
+                  <input
+                    type="checkbox"
+                    checked={acceptedDataTerms}
+                    onChange={(e) => setAcceptedDataTerms(e.target.checked)}
+                    className="mt-0.5 rounded text-neutral-950 focus:ring-emerald-500 cursor-pointer w-4 h-4"
+                  />
+                  <span>
+                    Concordo com os{' '}
+                    <button
+                      type="button"
+                      onClick={() => setIsTermsModalOpen(true)}
+                      className="font-bold underline text-neutral-950 hover:text-emerald-700 cursor-pointer"
+                    >
+                      Termos de Uso de Dados Comerciais
+                    </button>{' '}
+                    e autorizo o CotaFácil a armazenar meus dados de distribuidor para futuras cotações e recomendações a lojistas da minha região.
+                  </span>
+                </label>
+              </div>
+
               {/* Submit Button */}
               <button
                 type="submit"
@@ -486,6 +518,13 @@ export const SupplierPortalView: React.FC<Props> = ({
           </div>
         </form>
       </main>
+
+      {/* Modal de Termos de Uso de Dados */}
+      <SupplierTermsModal
+        isOpen={isTermsModalOpen}
+        onClose={() => setIsTermsModalOpen(false)}
+        onAccept={() => setAcceptedDataTerms(true)}
+      />
     </div>
   );
 };

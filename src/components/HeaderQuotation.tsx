@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Quotation, ShopkeeperStore } from '../types';
 import { User } from '../supabase';
-import { Clock, ShoppingCart, Store, Building2, LogOut, PlusCircle, History, CreditCard } from 'lucide-react';
+import { Clock, ShoppingCart, Store, Building2, LogOut, PlusCircle, History, CreditCard, Package } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface Props {
@@ -13,8 +13,10 @@ interface Props {
   ordersCount: number;
   historyCount?: number;
   vendorsCount?: number;
+  productsCatalogCount?: number;
   onLaunchQuotation?: () => void;
   onOpenManageVendors?: () => void;
+  onOpenManageProducts?: () => void;
   onOpenHistory?: () => void;
   onOpenBilling?: () => void;
   onLogout?: () => void;
@@ -31,8 +33,10 @@ export const HeaderQuotation: React.FC<Props> = ({
   ordersCount,
   historyCount = 0,
   vendorsCount = 0,
+  productsCatalogCount = 0,
   onLaunchQuotation,
   onOpenManageVendors,
+  onOpenManageProducts,
   onOpenHistory,
   onOpenBilling,
   onLogout,
@@ -103,6 +107,15 @@ export const HeaderQuotation: React.FC<Props> = ({
                   <span className="text-neutral-300 hidden sm:inline">•</span>
                   <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700 text-[11px] font-medium">
                     <span>{vendorsCount} {vendorsCount === 1 ? 'Fornecedor' : 'Fornecedores'}</span>
+                  </div>
+                </>
+              )}
+
+              {productsCatalogCount > 0 && (
+                <>
+                  <span className="text-neutral-300 hidden sm:inline">•</span>
+                  <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-700 text-[11px] font-medium">
+                    <span>{productsCatalogCount} {productsCatalogCount === 1 ? 'Produto' : 'Produtos'}</span>
                   </div>
                 </>
               )}
@@ -181,6 +194,23 @@ export const HeaderQuotation: React.FC<Props> = ({
             >
               <CreditCard className="w-3.5 h-3.5 text-sky-600" />
               <span>Mensalidade</span>
+            </button>
+          )}
+
+          {/* Gerenciar Catálogo de Produtos Trigger - shown on Home */}
+          {isHome && onOpenManageProducts && (
+            <button
+              onClick={onOpenManageProducts}
+              title="Gerenciar catálogo permanente de produtos da loja"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-neutral-700 bg-neutral-100 hover:bg-neutral-200/80 px-3 py-1.5 rounded-xl border border-neutral-200/80 transition-colors cursor-pointer"
+            >
+              <Package className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Produtos</span>
+              {productsCatalogCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-neutral-800 text-white text-[10px] font-bold flex items-center justify-center">
+                  {productsCatalogCount}
+                </span>
+              )}
             </button>
           )}
 

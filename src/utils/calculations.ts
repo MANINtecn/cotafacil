@@ -27,6 +27,64 @@ export function formatNumberBR(val: number): string {
 }
 
 /**
+ * Higieniza o input de valor monetário:
+ * - Converte automaticamente qualquer ponto (.) em vírgula (,)
+ * - Bloqueia caracteres que não sejam números ou vírgula
+ * - Garante no máximo 1 vírgula e até 2 casas decimais
+ */
+export function sanitizeCurrencyInput(raw: string): string {
+  if (!raw) return '';
+  // Substitui qualquer ponto digitado por vírgula
+  let val = raw.replace(/\./g, ',');
+  // Remove tudo que não for dígito numérico ou vírgula
+  val = val.replace(/[^0-9,]/g, '');
+
+  const parts = val.split(',');
+  if (parts.length > 2) {
+    // Se digitou mais de uma vírgula, preserva apenas a primeira
+    val = parts[0] + ',' + parts.slice(1).join('');
+  }
+
+  const normalizedParts = val.split(',');
+  if (normalizedParts.length === 2 && normalizedParts[1].length > 2) {
+    // Limita centavos a 2 dígitos decimais
+    val = normalizedParts[0] + ',' + normalizedParts[1].slice(0, 2);
+  }
+
+  return val;
+}
+
+/**
+ * Converte de forma segura o valor monetário em número float.
+ * Trata tanto valores com vírgula ("100,50") quanto com ponto decimal isolado ("100.50"),
+ * impedindo que "100.50" seja tratado como milhar/milhão.
+ */
+export function parseCurrencyValue(raw: string | number | null | undefined): number {
+  if (raw === null || raw === undefined) return 0;
+  if (typeof raw === 'number') return isNaN(raw) ? 0 : raw;
+  const str = String(raw).trim();
+  if (!str) return 0;
+
+  // Se tiver vírgula, a vírgula é o separador decimal
+  if (str.includes(',')) {
+    const clean = str.replace(/\./g, '').replace(',', '.');
+    const num = parseFloat(clean);
+    return isNaN(num) ? 0 : Math.round(num * 100) / 100;
+  }
+
+  // Se vier com ponto e tiver 1 ou 2 casas decimais no final (ex: "100.50" ou "12.5")
+  if (/^\d+\.\d{1,2}$/.test(str)) {
+    const num = parseFloat(str);
+    return isNaN(num) ? 0 : Math.round(num * 100) / 100;
+  }
+
+  // Se tiver múltiplos pontos (ex: "1.000.500") ou número inteiro
+  const clean = str.replace(/[^0-9]/g, '');
+  const num = parseFloat(clean);
+  return isNaN(num) ? 0 : num;
+}
+
+/**
  * Calculates the dynamically optimized total across all products,
  * picking only the best (lowest) available market price for each item.
  */

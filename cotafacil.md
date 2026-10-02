@@ -121,5 +121,13 @@ Realizada auditoria técnica minuciosa em todo o código-fonte para transformar 
   - Lojista: Eliminação do vazamento de lojas (`allStores[0]`), isolamento rigoroso por conta/e-mail, remoção do fallback estático `'A Casa do Senhor'`.
   - Fornecedor: Remoção dos botões de mock da tela de login pública e acesso dinâmico por link ou código de cotação.
   - Remoção de IA: Remoção de `@google/genai`, limpeza de ícones `Sparkles` e eliminação de código morto (`firebase.ts`, `initialData.ts`).
+- [x] **Features & Melhorias Estratégicas B2B (02/10/2026)**:
+  - **Termos de Uso de Dados dos Fornecedores & LGPD**: Adicionado consentimento obrigatório e modal explicativo de privacidade para armazenamento e futura indicação/match regional com novos lojistas parceiros.
+  - **Banner e Modal de Cookies**: Exibição elegante e explicação 100% didática sobre como cookies e localStorage mantêm autenticação, performance e rascunhos persistentes sem perda de dados.
+  - **Rascunhos Persistentes de Cotação (Auto-save)**: Salvamento contínuo em tempo real. Se o app for fechado ou o celular desligar, ao retornar os produtos e detalhes são recuperados automaticamente com opção de descarte.
+  - **Visualização Responsiva de Produtos no Mobile**: Reestruturação dos itens de cotação em telas móveis, garantindo que o nome do produto apareça 100% completo, sem corte ou compressão visual, com controles compactos de quantidade e exclusão.
+  - **Higienização de Valores Monetários (Ponto virando vírgula)**: Implementadas funções `sanitizeCurrencyInput` e `parseCurrencyValue`, convertendo qualquer ponto digitado para vírgula e impedindo cálculos inflacionados (ex: 100.50 virando milhão).
+  - **Catálogo Permanente de Produtos do Lojista**: Criado `ManageProductsModal`, seletor rápido (combobox) no lançamento de cotação, opção de salvar produtos automaticamente no catálogo fixo da loja e métricas no painel.
 - [ ] **Ativação do Google OAuth no Supabase**: Acessar *Authentication > Providers > Google* no painel do Supabase com Client ID / Client Secret do Google Cloud Console e copiar o Callback URL do Supabase para o console do Google.
+
 

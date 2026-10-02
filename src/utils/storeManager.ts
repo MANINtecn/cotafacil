@@ -543,3 +543,128 @@ export function populateDemoData(): { stores: ShopkeeperStore[]; vendors: Vendor
     invoices: demoInvoices,
   };
 }
+
+// ==========================================
+// PERSISTENT QUOTATION DRAFTS (AUTO-SAVE)
+// ==========================================
+export interface QuotationDraft {
+  title: string;
+  notes: string;
+  deadlineDateTime: string;
+  products: Product[];
+  selectedVendorIds: string[];
+  savedAt: string;
+}
+
+const DRAFT_STORAGE_KEY = 'cotafacil_quotation_draft';
+
+export function getStoredQuotationDraft(storeSlug?: string): QuotationDraft | null {
+  try {
+    const key = storeSlug ? `${DRAFT_STORAGE_KEY}_${storeSlug}` : DRAFT_STORAGE_KEY;
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+
+    // Fallback para chave geral
+    if (storeSlug) {
+      const fallback = localStorage.getItem(DRAFT_STORAGE_KEY);
+      if (fallback) return JSON.parse(fallback);
+    }
+  } catch (e) {
+    console.error('Erro ao ler rascunho de cotação:', e);
+  }
+  return null;
+}
+
+export function saveQuotationDraft(draft: QuotationDraft, storeSlug?: string): void {
+  try {
+    const key = storeSlug ? `${DRAFT_STORAGE_KEY}_${storeSlug}` : DRAFT_STORAGE_KEY;
+    localStorage.setItem(key, JSON.stringify(draft));
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draft));
+  } catch (e) {
+    console.error('Erro ao salvar rascunho de cotação:', e);
+  }
+}
+
+export function clearQuotationDraft(storeSlug?: string): void {
+  try {
+    const key = storeSlug ? `${DRAFT_STORAGE_KEY}_${storeSlug}` : DRAFT_STORAGE_KEY;
+    localStorage.removeItem(key);
+    localStorage.removeItem(DRAFT_STORAGE_KEY);
+  } catch (e) {
+    console.error('Erro ao limpar rascunho de cotação:', e);
+  }
+}
+
+// ==========================================
+// STORE PRODUCTS CATALOG (CATÁLOGO FIXO DA LOJA)
+// ==========================================
+const CATALOG_PRODUCTS_KEY = 'cotafacil_catalog_products';
+
+const DEFAULT_CATALOG_SUGGESTIONS: Product[] = [
+  { id: 'cat-1', name: 'Arroz Tipo 1 Especial 5kg', category: 'Alimentos', unit: 'pct', quantity: 1 },
+  { id: 'cat-2', name: 'Feijão Carioca 1kg', category: 'Alimentos', unit: 'pct', quantity: 1 },
+  { id: 'cat-3', name: 'Óleo de Soja 900ml', category: 'Alimentos', unit: 'cx', quantity: 1 },
+  { id: 'cat-4', name: 'Açúcar Refinado 1kg', category: 'Alimentos', unit: 'pct', quantity: 1 },
+  { id: 'cat-5', name: 'Café Torrado e Moído 500g', category: 'Alimentos', unit: 'pct', quantity: 1 },
+  { id: 'cat-6', name: 'Leite Integral UHT 1L', category: 'Laticínios', unit: 'cx', quantity: 1 },
+  { id: 'cat-7', name: 'Detergente Líquido 500ml', category: 'Limpeza', unit: 'cx', quantity: 1 },
+  { id: 'cat-8', name: 'Sabão em Pó 1kg', category: 'Limpeza', unit: 'cx', quantity: 1 },
+];
+
+export function getStoredCatalogProducts(storeSlug?: string): Product[] {
+  try {
+    const key = storeSlug ? `${CATALOG_PRODUCTS_KEY}_${storeSlug}` : CATALOG_PRODUCTS_KEY;
+    const raw = localStorage.getItem(key);
+    if (raw) return JSON.parse(raw);
+
+    // Se estiver vazio para nova loja, inicializa com sugestões básicas úteis
+    const initial = DEFAULT_CATALOG_SUGGESTIONS;
+    saveCatalogProducts(initial, storeSlug);
+    return initial;
+  } catch (e) {
+    console.error('Erro ao carregar catálogo de produtos:', e);
+  }
+  return DEFAULT_CATALOG_SUGGESTIONS;
+}
+
+export function saveCatalogProducts(products: Product[], storeSlug?: string): void {
+  try {
+    const key = storeSlug ? `${CATALOG_PRODUCTS_KEY}_${storeSlug}` : CATALOG_PRODUCTS_KEY;
+    localStorage.setItem(key, JSON.stringify(products));
+  } catch (e) {
+    console.error('Erro ao salvar catálogo de produtos:', e);
+  }
+}
+
+export function addCatalogProduct(
+  productData: Omit<Product, 'id'>,
+  storeSlug?: string
+): Product {
+  const products = getStoredCatalogProducts(storeSlug);
+  const newProduct: Product = {
+    ...productData,
+    id: `cat-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+  };
+  const updated = [newProduct, ...products];
+  saveCatalogProducts(updated, storeSlug);
+  return newProduct;
+}
+
+export function updateCatalogProduct(
+  productId: string,
+  updates: Partial<Product>,
+  storeSlug?: string
+): Product[] {
+  const products = getStoredCatalogProducts(storeSlug);
+  const updated = products.map((p) => (p.id === productId ? { ...p, ...updates } : p));
+  saveCatalogProducts(updated, storeSlug);
+  return updated;
+}
+
+export function deleteCatalogProduct(productId: string, storeSlug?: string): Product[] {
+  const products = getStoredCatalogProducts(storeSlug);
+  const updated = products.filter((p) => p.id !== productId);
+  saveCatalogProducts(updated, storeSlug);
+  return updated;
+}
+

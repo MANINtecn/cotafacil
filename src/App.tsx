@@ -24,6 +24,8 @@ import { ShopkeeperBillingModal } from './components/ShopkeeperBillingModal';
 import { OpenQuotationsStack } from './components/OpenQuotationsStack';
 import { ActiveQuotationDetails } from './components/ActiveQuotationDetails';
 import { ShopkeeperHomeOverview } from './components/ShopkeeperHomeOverview';
+import { ManageProductsModal } from './components/ManageProductsModal';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 import {
   supabase,
   User,
@@ -58,7 +60,11 @@ import {
   deleteQuotationFromHistory,
   decodeQuotationPayload,
   buildSupplierQuotationLink,
-  QuotationBundle
+  QuotationBundle,
+  getStoredCatalogProducts,
+  addCatalogProduct,
+  updateCatalogProduct,
+  deleteCatalogProduct
 } from './utils/storeManager';
 import {
   Info,
@@ -134,6 +140,10 @@ export default function App() {
   // Modals & Drawers
   const [isOrdersDrawerOpen, setIsOrdersDrawerOpen] = useState(false);
   const [isManageVendorsModalOpen, setIsManageVendorsModalOpen] = useState(false);
+  const [isManageProductsModalOpen, setIsManageProductsModalOpen] = useState(false);
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>(() =>
+    getStoredCatalogProducts(currentStore?.slug)
+  );
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
@@ -404,6 +414,7 @@ export default function App() {
       const vList = getStoredVendors(currentStore.slug);
       setVendors(vList);
       setQuotationsHistory(getQuotationsHistory(currentStore.slug));
+      setCatalogProducts(getStoredCatalogProducts(currentStore.slug));
     }
   }, [currentStore, currentUserRole]);
 
@@ -751,6 +762,22 @@ export default function App() {
     const updated = vendors.filter((v) => v.id !== vendorId);
     setVendors(updated);
     saveVendors(updated, currentStore?.slug);
+  };
+
+  // --- CATALOG PRODUCTS MANAGEMENT FOR LOJISTA ---
+  const handleAddCatalogProduct = (prodData: Omit<Product, 'id'>) => {
+    const created = addCatalogProduct(prodData, currentStore?.slug);
+    setCatalogProducts((prev) => [created, ...prev]);
+  };
+
+  const handleUpdateCatalogProduct = (productId: string, updates: Partial<Product>) => {
+    const updated = updateCatalogProduct(productId, updates, currentStore?.slug);
+    setCatalogProducts(updated);
+  };
+
+  const handleDeleteCatalogProduct = (productId: string) => {
+    const updated = deleteCatalogProduct(productId, currentStore?.slug);
+    setCatalogProducts(updated);
   };
 
   // --- QUOTATION CREATION / LAUNCH ---
@@ -1129,8 +1156,10 @@ export default function App() {
               ordersCount={orders.length}
               historyCount={quotationsHistory.length}
               vendorsCount={vendors.length}
+              productsCatalogCount={catalogProducts.length}
               onLaunchQuotation={handleOpenNewQuotation}
               onOpenManageVendors={() => setIsManageVendorsModalOpen(true)}
+              onOpenManageProducts={() => setIsManageProductsModalOpen(true)}
               onOpenHistory={() => setIsHistoryModalOpen(true)}
               onOpenBilling={() => setIsBillingModalOpen(true)}
               onLogout={handleLogout}
@@ -1151,8 +1180,10 @@ export default function App() {
                     quotations={quotationsHistory}
                     vendors={vendors}
                     ordersCount={orders.length}
+                    catalogProductsCount={catalogProducts.length}
                     onNewQuotation={handleOpenNewQuotation}
                     onOpenManageVendors={() => setIsManageVendorsModalOpen(true)}
+                    onOpenManageProducts={() => setIsManageProductsModalOpen(true)}
                     onOpenHistory={() => setIsHistoryModalOpen(true)}
                     onOpenOrders={() => setIsOrdersDrawerOpen(true)}
                     onOpenBilling={() => setIsBillingModalOpen(true)}
@@ -1250,6 +1281,10 @@ export default function App() {
               initialProducts={launchInitialProducts}
               initialTitle={launchInitialTitle}
               vendors={vendors}
+              storeSlug={currentStore?.slug}
+              catalogProducts={catalogProducts}
+              onOpenManageCatalog={() => setIsManageProductsModalOpen(true)}
+              onAddProductToCatalog={handleAddCatalogProduct}
               onOpenHistory={() => setIsHistoryModalOpen(true)}
             />
           </div>
@@ -1284,6 +1319,23 @@ export default function App() {
           onAddVendor={handleAddVendor}
           onUpdateVendor={handleUpdateVendor}
           onDeleteVendor={handleDeleteVendor}
+        />
+
+        {/* Modal: Gerenciar Catálogo Permanente de Produtos da Loja */}
+        <ManageProductsModal
+          isOpen={isManageProductsModalOpen}
+          onClose={() => setIsManageProductsModalOpen(false)}
+          catalogProducts={catalogProducts}
+          onAddProduct={handleAddCatalogProduct}
+          onUpdateProduct={handleUpdateCatalogProduct}
+          onDeleteProduct={handleDeleteCatalogProduct}
+          onSelectForQuotation={(p) => {
+            setIsManageProductsModalOpen(false);
+            setLaunchInitialProducts((prev) => [...prev, p]);
+            if (currentScreen !== 'launch-quotation') {
+              setCurrentScreen('launch-quotation');
+            }
+          }}
         />
 
         {/* Modal: Histórico de Listas & Cotações Anteriores */}
@@ -1331,6 +1383,9 @@ export default function App() {
           order={lastCreatedOrder}
           onClose={() => setLastCreatedOrder(null)}
         />
+
+        {/* Banner Global de Consentimento de Cookies & LGPD */}
+        <CookieConsentBanner />
       </div>
     </div>
   );

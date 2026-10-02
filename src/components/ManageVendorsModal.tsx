@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Vendor } from '../types';
 import { Building2, Plus, Trash2, Edit2, X, CheckCircle2, Phone, Truck, DollarSign } from 'lucide-react';
-import { formatCurrencyBRL } from '../utils/calculations';
+import { formatCurrencyBRL, sanitizeCurrencyInput, parseCurrencyValue } from '../utils/calculations';
 
 interface Props {
   isOpen: boolean;
@@ -62,8 +62,7 @@ export const ManageVendorsModal: React.FC<Props> = ({
     e.preventDefault();
     if (!company.trim() || !name.trim()) return;
 
-    const minVal = parseFloat(minOrderStr.replace('.', '').replace(',', '.'));
-    const validMin = isNaN(minVal) || minVal < 0 ? 0 : minVal;
+    const validMin = parseCurrencyValue(minOrderStr);
 
     if (editingVendorId) {
       const existing = vendors.find((v) => v.id === editingVendorId);
@@ -186,7 +185,7 @@ export const ManageVendorsModal: React.FC<Props> = ({
                 <input
                   type="text"
                   value={minOrderStr}
-                  onChange={(e) => setMinOrderStr(e.target.value)}
+                  onChange={(e) => setMinOrderStr(sanitizeCurrencyInput(e.target.value))}
                   placeholder="500,00"
                   className="w-full px-3 py-2 bg-white border-2 border-neutral-300 hover:border-neutral-400 focus:border-neutral-900 rounded-xl text-xs font-mono-num font-bold text-neutral-900 focus:outline-hidden"
                 />
