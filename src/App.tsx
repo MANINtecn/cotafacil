@@ -67,7 +67,12 @@ import {
   getStoredCatalogProducts,
   addCatalogProduct,
   updateCatalogProduct,
-  deleteCatalogProduct
+  deleteCatalogProduct,
+  saveActiveSession,
+  getActiveSession,
+  clearActiveSession,
+  updateActiveSessionScreen,
+  ActiveSession
 } from './utils/storeManager';
 import {
   Info,
@@ -95,7 +100,7 @@ const INITIAL_CLEAN_QUOTATION: Quotation = {
 };
 
 export default function App() {
-  // Production Navigation & Role State (suporta /admin, /super-admin e parâmetros de URL)
+  // Production Navigation & Role State (suporta /admin, /super-admin, URL params e Sessão Persistida contra F5/Pull-to-refresh)
   const [currentScreen, setCurrentScreen] = useState<AppScreen>(() => {
     try {
       const path = window.location.pathname.toLowerCase();
@@ -103,14 +108,38 @@ export default function App() {
       if (path === '/admin' || path === '/super-admin' || params.get('role') === 'admin' || params.has('admin')) {
         return 'super-admin-login';
       }
+      const s = getActiveSession();
+      if (s && s.role) {
+        if (s.role === 'admin') return 'admin-billing';
+        if (s.role === 'fornecedor') return 'supplier-portal';
+        if (s.role === 'lojista') return s.screen || 'quotation';
+      }
     } catch {}
     return 'login';
   });
-  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(() => {
+    try {
+      const s = getActiveSession();
+      if (s && s.role) {
+        return s.role;
+      }
+    } catch {}
+    return null;
+  });
 
-  // Stores & Active Store (Sem pré-seleção para garantir isolamento de tenant)
+  // Stores & Active Store (Restaura loja ativa da sessão salva)
   const [stores, setStores] = useState<ShopkeeperStore[]>(() => getStoredStores());
-  const [currentStore, setCurrentStore] = useState<ShopkeeperStore | null>(null);
+  const [currentStore, setCurrentStore] = useState<ShopkeeperStore | null>(() => {
+    try {
+      const s = getActiveSession();
+      if (s && s.storeSlug) {
+        const allStores = getStoredStores();
+        const found = allStores.find((st) => st.slug.toLowerCase() === s.storeSlug?.toLowerCase());
+        if (found) return found;
+      }
+    } catch {}
+    return null;
+  });
   const [isSuperAdminViewing, setIsSuperAdminViewing] = useState(false);
 
   // Vendors for active store - inicia limpo por segurança multi-tenant
@@ -545,13 +574,64 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  // Login do Lojista (com persistência de sessão e criação isolada de loja se nova)
+  const handleLoginAsLojista = (slugOrEmail?: string) => {
+    const allStores = getStoredStores();
+    const cleanIdentifier = (slugOrEmail || user?.email || '').trim().toLowerCase();
+
+    let target = allStores.find(
+      (s) => s.slug.toLowerCase() === cleanIdentifier || s.email.toLowerCase() === cleanIdentifier
+    );
+
+    // Se o usuário não tiver uma loja vinculada ao seu e-mail/identificador, cria uma loja própria isolada (NUNCA herda loja de outros)
+    if (!target) {
+      const emailToUse = user?.email || (cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanIdentifier || 'lojista'}@cotafacil.com.br`);
+      const rawName = cleanIdentifier.includes('@')
+        ? cleanIdentifier.split('@')[0]
+        : cleanIdentifier || 'Meu Comércio';
+      const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1).replace(/[-_.]/g, ' ');
+      const cleanSlug = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-') || `loja-${Date.now().toString().slice(-4)}`;
+
+      target = addStore({
+        name: formattedName,
+        slug: cleanSlug,
+        contactPerson: user?.user_metadata?.full_name || 'Lojista',
+        email: emailToUse,
+        whatsapp: '',
+        monthlyFee: 390.00,
+        dueDay: 10,
+        planName: 'Plano Pro (Teste Grátis 7 dias)',
+        status: 'Teste Grátis',
+      });
+      setStores(getStoredStores());
+      setInvoices(getStoredInvoices());
+    }
+
+    // Check if blocked
+    const activeInvoices = getStoredInvoices();
+    const activeInvoice = activeInvoices.find((inv) => inv.slug === target?.slug);
+    if (activeInvoice && activeInvoice.isBlocked) {
+      alert(`O acesso da loja "${target.name}" está temporariamente bloqueado por mensalidade pendente. Contate o administrador.`);
+      return;
+    }
+
+    setCurrentStore(target);
+    setCurrentUserRole('lojista');
+    setCurrentScreen((prev) => (prev === 'login' || prev === 'super-admin-login' ? 'quotation' : prev));
+    saveActiveSession({
+      role: 'lojista',
+      storeSlug: target.slug,
+      screen: 'quotation',
+      email: target.email || cleanIdentifier,
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Supabase auth sync & pedidos
   useEffect(() => {
     testConnection();
 
-    // Carrega a sessão atual
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      const currentUser = session?.user ?? null;
+    const processAuthenticatedUser = (currentUser: User | null) => {
       setUser(currentUser);
       setAuthLoading(false);
 
@@ -560,6 +640,10 @@ export default function App() {
         if (email === 'icaroetatiana@gmail.com' || isSuperAdminEmail(email)) {
           setCurrentUserRole('admin');
           setCurrentScreen((prev) => (prev === 'login' || prev === 'super-admin-login' ? 'admin-billing' : prev));
+          saveActiveSession({ role: 'admin', screen: 'admin-billing', email });
+        } else if (email) {
+          // Conectado com Google OAuth ou email/senha como Lojista
+          handleLoginAsLojista(email);
         }
 
         loadOrdersFromSupabase(currentUser.id).then((loadedOrders) => {
@@ -568,27 +652,25 @@ export default function App() {
           }
         });
       }
+    };
+
+    // Carrega a sessão atual
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      processAuthenticatedUser(session?.user ?? null);
     });
 
     // Escuta mudanças de autenticação (login/logout/token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      const currentUser = session?.user ?? null;
-      setUser(currentUser);
-      setAuthLoading(false);
-
-      if (currentUser) {
-        const email = currentUser.email?.toLowerCase();
-        if (email === 'icaroetatiana@gmail.com' || isSuperAdminEmail(email)) {
-          setCurrentUserRole('admin');
-          setCurrentScreen((prev) => (prev === 'login' || prev === 'super-admin-login' ? 'admin-billing' : prev));
-        }
-
-        loadOrdersFromSupabase(currentUser.id).then((loadedOrders) => {
-          if (loadedOrders && loadedOrders.length > 0) {
-            setOrders(loadedOrders);
-          }
-        });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_OUT') {
+        clearActiveSession();
+        setCurrentUserRole(null);
+        setCurrentStore(null);
+        setCurrentScreen('login');
+        setUser(null);
+        setAuthLoading(false);
+        return;
       }
+      processAuthenticatedUser(session?.user ?? null);
     });
 
     return () => {
@@ -676,52 +758,7 @@ export default function App() {
           minOrderValue: urlVendorInfo?.minOrderValue || 500,
         });
 
-  // --- LOGIN & REGISTRATION HANDLERS ---
-  const handleLoginAsLojista = (slugOrEmail?: string) => {
-    const allStores = getStoredStores();
-    const cleanIdentifier = (slugOrEmail || user?.email || '').trim().toLowerCase();
-
-    let target = allStores.find(
-      (s) => s.slug.toLowerCase() === cleanIdentifier || s.email.toLowerCase() === cleanIdentifier
-    );
-
-    // Se o usuário não tiver uma loja vinculada ao seu e-mail/identificador, cria uma loja própria isolada (NUNCA herda loja de outros)
-    if (!target) {
-      const emailToUse = user?.email || (cleanIdentifier.includes('@') ? cleanIdentifier : `${cleanIdentifier || 'lojista'}@cotafacil.com.br`);
-      const rawName = cleanIdentifier.includes('@')
-        ? cleanIdentifier.split('@')[0]
-        : cleanIdentifier || 'Meu Comércio';
-      const formattedName = rawName.charAt(0).toUpperCase() + rawName.slice(1).replace(/[-_.]/g, ' ');
-      const cleanSlug = rawName.toLowerCase().replace(/[^a-z0-9]/g, '-') || `loja-${Date.now().toString().slice(-4)}`;
-
-      target = addStore({
-        name: formattedName,
-        slug: cleanSlug,
-        contactPerson: user?.user_metadata?.full_name || 'Lojista',
-        email: emailToUse,
-        whatsapp: '',
-        monthlyFee: 390.00,
-        dueDay: 10,
-        planName: 'Plano Pro (Teste Grátis 7 dias)',
-        status: 'Teste Grátis',
-      });
-      setStores(getStoredStores());
-      setInvoices(getStoredInvoices());
-    }
-
-    // Check if blocked
-    const activeInvoice = invoices.find((inv) => inv.slug === target?.slug);
-    if (activeInvoice && activeInvoice.isBlocked) {
-      alert(`O acesso da loja "${target.name}" está temporariamente bloqueado por mensalidade pendente. Contate o administrador.`);
-      return;
-    }
-
-    setCurrentStore(target);
-    setCurrentUserRole('lojista');
-    setCurrentScreen('quotation');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
+  // --- REGISTRATION & SUPPLIER HANDLERS ---
   const handleRegisterShopkeeper = (storeData: {
     name: string;
     slug: string;
@@ -742,6 +779,12 @@ export default function App() {
     setCurrentStore(newStore);
     setCurrentUserRole('lojista');
     setCurrentScreen('quotation');
+    saveActiveSession({
+      role: 'lojista',
+      storeSlug: newStore.slug,
+      screen: 'quotation',
+      email: newStore.email,
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -749,6 +792,11 @@ export default function App() {
     setSelectedVendorId(vendorId);
     setCurrentUserRole('fornecedor');
     setCurrentScreen('supplier-portal');
+    saveActiveSession({
+      role: 'fornecedor',
+      vendorId,
+      screen: 'supplier-portal',
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -861,10 +909,16 @@ export default function App() {
   const handleSuperAdminLoginSuccess = () => {
     setCurrentUserRole('admin');
     setCurrentScreen('admin-billing');
+    saveActiveSession({
+      role: 'admin',
+      screen: 'admin-billing',
+      email: 'icaroetatiana@gmail.com',
+    });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleLogout = async () => {
+    clearActiveSession();
     setIsSuperAdminViewing(false);
     try {
       await logOut();

@@ -1,4 +1,4 @@
-import { ShopkeeperStore, Vendor, Product, Quotation, BillingInvoice } from '../types';
+import { ShopkeeperStore, Vendor, Product, Quotation, BillingInvoice, AppScreen, UserRole } from '../types';
 
 const ADMIN_CREDENTIALS_KEY = 'cotafacil_admin_credentials';
 const STORES_STORAGE_KEY = 'cotafacil_stores_data';
@@ -6,6 +6,79 @@ const VENDORS_STORAGE_KEY = 'cotafacil_vendors_data';
 const INVOICES_STORAGE_KEY = 'cotafacil_invoices_data';
 const QUOTATION_STORAGE_KEY = 'cotafacil_active_quotation';
 const PRODUCTS_STORAGE_KEY = 'cotafacil_active_products';
+const ACTIVE_SESSION_KEY = 'cotafacil_active_session';
+const LAST_EMAIL_KEY = 'cotafacil_last_login_email';
+
+export interface ActiveSession {
+  role: UserRole;
+  storeSlug?: string;
+  screen?: AppScreen;
+  email?: string;
+  vendorId?: string;
+  savedAt?: string;
+}
+
+export function saveActiveSession(session: ActiveSession): void {
+  try {
+    const payload: ActiveSession = {
+      ...session,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(payload));
+    if (session.email) {
+      localStorage.setItem(LAST_EMAIL_KEY, session.email);
+    }
+  } catch (e) {
+    console.error('Error saving active session:', e);
+  }
+}
+
+export function getActiveSession(): ActiveSession | null {
+  try {
+    const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.error('Error reading active session:', e);
+  }
+  return null;
+}
+
+export function clearActiveSession(): void {
+  try {
+    localStorage.removeItem(ACTIVE_SESSION_KEY);
+  } catch (e) {
+    console.error('Error clearing active session:', e);
+  }
+}
+
+export function updateActiveSessionScreen(screen: AppScreen): void {
+  try {
+    const current = getActiveSession();
+    if (current) {
+      current.screen = screen;
+      current.savedAt = new Date().toISOString();
+      localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(current));
+    }
+  } catch (e) {
+    console.error('Error updating active session screen:', e);
+  }
+}
+
+export function getLastLoginEmail(): string {
+  try {
+    return localStorage.getItem(LAST_EMAIL_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setLastLoginEmail(email: string): void {
+  try {
+    localStorage.setItem(LAST_EMAIL_KEY, email);
+  } catch {
+    // Ignore
+  }
+}
 
 export interface AdminCredentials {
   email: string;
