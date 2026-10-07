@@ -244,14 +244,60 @@ export function subscribeToQuotationRealtime(
 }
 
 /**
- * Salvar proposta/preços do fornecedor no Supabase
+ * Salvar proposta/preços do fornecedor no Supabase de forma segura e acumulativa
+ * Garante que múltiplos fornecedores (ex: 50 representantes) tenham suas propostas
+ * mescladas sem que uma sobrescreva a outra.
  */
 export async function saveSupplierProposalToSupabase(
   code: string,
   updatedBundle: QuotationBundle
 ): Promise<void> {
   try {
-    await saveQuotationToSupabase(updatedBundle);
+    // 1. Busca os dados mais recentes do Supabase para garantir merge acumulativo
+    const freshData = await getQuotationFromSupabase(code);
+    let finalBundle = updatedBundle;
+
+    if (freshData) {
+      // Mescla acumulativa de preços de todos os fornecedores
+      const mergedPrices: Record<string, Record<string, number | null>> = {
+        ...(freshData.prices || {}),
+      };
+
+      if (updatedBundle.prices) {
+        Object.keys(updatedBundle.prices).forEach((vId) => {
+          mergedPrices[vId] = {
+            ...(mergedPrices[vId] || {}),
+            ...(updatedBundle.prices[vId] || {}),
+          };
+        });
+      }
+
+      // Mescla de fornecedores (preserva existentes e atualiza o fornecedor submetente)
+      const existingVendors = freshData.vendors || [];
+      const incomingVendors = updatedBundle.vendors || [];
+      const mergedVendors = [...existingVendors];
+
+      incomingVendors.forEach((iv) => {
+        const idx = mergedVendors.findIndex((ev) => ev.id === iv.id);
+        if (idx >= 0) {
+          mergedVendors[idx] = { ...mergedVendors[idx], ...iv };
+        } else {
+          mergedVendors.push(iv);
+        }
+      });
+
+      finalBundle = {
+        ...freshData,
+        ...updatedBundle,
+        quotation: freshData.quotation || updatedBundle.quotation,
+        products: freshData.products && freshData.products.length > 0 ? freshData.products : updatedBundle.products,
+        vendors: mergedVendors,
+        prices: mergedPrices,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+
+    await saveQuotationToSupabase(finalBundle);
   } catch (err) {
     console.warn('Erro ao salvar proposta do fornecedor no Supabase:', err);
   }

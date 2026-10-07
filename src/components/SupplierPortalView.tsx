@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Vendor, Product, Quotation } from '../types';
 import { formatCurrencyBRL, sanitizeCurrencyInput, parseCurrencyValue } from '../utils/calculations';
 import { SupplierTermsModal } from './SupplierTermsModal';
-import { encodeProposalPayload, SupplierProposalPayload } from '../utils/storeManager';
+import { slugify } from '../utils/storeManager';
 import {
   CheckCircle2,
   Clock,
@@ -14,7 +14,9 @@ import {
   MessageCircle,
   RotateCcw,
   Store,
-  ShieldCheck
+  ShieldCheck,
+  ChevronRight,
+  Users
 } from 'lucide-react';
 
 interface Props {
@@ -26,6 +28,8 @@ interface Props {
   initialPrices?: Record<string, number | null>;
   onSubmitProposal: (vendor: Vendor, prices: Record<string, number | null>, notes: string) => void;
   onBackToApp?: () => void;
+  allVendors?: Vendor[];
+  onSelectVendor?: (vendorId: string) => void;
 }
 
 export const SupplierPortalView: React.FC<Props> = ({
@@ -37,6 +41,8 @@ export const SupplierPortalView: React.FC<Props> = ({
   initialPrices = {},
   onSubmitProposal,
   onBackToApp,
+  allVendors = [],
+  onSelectVendor,
 }) => {
   // Local state for supplier's input prices - ALWAYS start 100% clean and empty! Zero pre-filled prices
   const [pricesState, setPricesState] = useState<Record<string, string>>({});
@@ -46,6 +52,8 @@ export const SupplierPortalView: React.FC<Props> = ({
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [acceptedDataTerms, setAcceptedDataTerms] = useState(true);
   const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [isVendorSelectModalOpen, setIsVendorSelectModalOpen] = useState(false);
+
 
   useEffect(() => {
     if (vendor.deliveryDays) {
@@ -128,40 +136,20 @@ export const SupplierPortalView: React.FC<Props> = ({
     const rawPhone = (storeWhatsApp || '').replace(/\D/g, '');
     const cleanPhone = rawPhone.length === 10 || rawPhone.length === 11 ? `55${rawPhone}` : rawPhone;
 
-    // Build instant import URL for shopkeeper (1-tap proposal sync)
-    let syncLinkText = '';
-    try {
-      const origin = window.location.origin;
-      const path = window.location.pathname;
-      const proposalPayload: SupplierProposalPayload = {
-        cot: quotation.code,
-        t: quotation.title,
-        s: storeName,
-        v: vendor.id,
-        vn: vendor.name,
-        vc: vendor.company,
-        vm: vendor.minOrderValue,
-        vp: vendor.phone,
-        vd: deliveryNotes,
-        prices: parsedPrices,
-        submittedAt: new Date().toISOString(),
-      };
-      const encodedProp = encodeProposalPayload(proposalPayload);
-      if (encodedProp) {
-        const syncUrl = `${origin}${path}?importProp=${encodedProp}&cot=${quotation.code}`;
-        syncLinkText = `\n\n⚡ *Sincronizar no painel da loja com 1 clique:*\n${syncUrl}`;
-      }
-    } catch (e) {
-      console.warn('Sync link generation error:', e);
-    }
+    const origin = window.location.origin;
+    const sSlug = slugify(storeName || 'loja') || 'loja';
+    const cleanCode = quotation.code || quotation.id || 'COT-001';
+    const storeLink = `${origin}/${sSlug}/${cleanCode}`;
 
     const msg =
       `Olá, loja *${storeName}*!\n\n` +
       `Aqui é *${vendor.name}* da distribuidora *${vendor.company}*.\n` +
-      `Acabei de preencher e enviar a proposta de preços para a cotação *${quotation.title}* (${quotation.code}).\n\n` +
+      `Acabei de preencher e enviar a proposta de preços para a cotação *${quotation.title}* (${cleanCode}).\n\n` +
       `📦 *Itens cotados:* ${quotedCount} de ${products.length}\n` +
       `💰 *Valor total da nossa proposta:* ${formatCurrencyBRL(totalProposal)}\n` +
-      `🚚 *Prazo de entrega informado:* ${deliveryNotes}${syncLinkText}\n\n` +
+      `🚚 *Prazo de entrega informado:* ${deliveryNotes}\n\n` +
+      `Os preços já estão salvos e disponíveis no seu painel:\n` +
+      `${storeLink}\n\n` +
       `Obrigado pela preferência!`;
 
     const waUrl = cleanPhone
@@ -170,6 +158,7 @@ export const SupplierPortalView: React.FC<Props> = ({
 
     window.open(waUrl, '_blank');
   };
+
 
   return (
     <div className="min-h-screen bg-neutral-100 flex flex-col items-center selection:bg-neutral-900 selection:text-white pb-20">
@@ -216,10 +205,23 @@ export const SupplierPortalView: React.FC<Props> = ({
               <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
                 Portal do Fornecedor & Distribuidor
               </span>
-              <h1 className="text-lg sm:text-xl font-bold text-neutral-900 tracking-tight mt-0.5">
-                Olá, {vendor.name} ({vendor.company})!
-              </h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-lg sm:text-xl font-bold text-neutral-900 tracking-tight mt-0.5">
+                  Olá, {vendor.name} ({vendor.company})!
+                </h1>
+                {allVendors && allVendors.length > 1 && onSelectVendor && (
+                  <button
+                    type="button"
+                    onClick={() => setIsVendorSelectModalOpen(true)}
+                    className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-neutral-100 hover:bg-neutral-200 text-neutral-700 transition-colors cursor-pointer border border-neutral-300 flex items-center gap-1"
+                  >
+                    <Users className="w-3.5 h-3.5 text-neutral-500" />
+                    <span>Trocar Distribuidora ({allVendors.length})</span>
+                  </button>
+                )}
+              </div>
             </div>
+
 
             <div className="flex items-center gap-2 bg-neutral-50 px-3 py-1.5 rounded-xl border border-neutral-200 text-xs">
               <Clock className="w-4 h-4 text-neutral-500" />
@@ -554,6 +556,65 @@ export const SupplierPortalView: React.FC<Props> = ({
         onClose={() => setIsTermsModalOpen(false)}
         onAccept={() => setAcceptedDataTerms(true)}
       />
+
+      {/* Modal de Seleção de Distribuidora para Múltiplos Fornecedores */}
+      {isVendorSelectModalOpen && (
+        <div className="fixed inset-0 z-50 bg-neutral-950/70 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 border-2 border-neutral-200 shadow-2xl">
+            <div className="flex items-center justify-between pb-3 border-b border-neutral-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-neutral-900">Selecione sua Distribuidora</h3>
+                  <p className="text-[11px] text-neutral-500">Cotação {quotation.code || 'B2B'}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsVendorSelectModalOpen(false)}
+                className="text-xs text-neutral-400 hover:text-neutral-700 font-bold p-1 rounded-lg hover:bg-neutral-100 cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <p className="text-xs text-neutral-600 leading-relaxed">
+              Esta cotação foi enviada para múltiplos fornecedores. Selecione sua distribuidora abaixo para registrar seus preços corretamente:
+            </p>
+
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {allVendors.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => {
+                    if (onSelectVendor) onSelectVendor(v.id);
+                    setIsVendorSelectModalOpen(false);
+                  }}
+                  className={`w-full text-left p-3.5 rounded-2xl border text-xs flex items-center justify-between cursor-pointer transition-all ${
+                    v.id === vendor.id
+                      ? 'border-emerald-500 bg-emerald-50 font-bold text-emerald-950 shadow-xs'
+                      : 'border-neutral-200 hover:border-neutral-900 hover:bg-neutral-50 text-neutral-800'
+                  }`}
+                >
+                  <div>
+                    <div className="font-bold text-sm text-neutral-900">{v.company}</div>
+                    <div className="text-xs text-neutral-500">Representante: {v.name} {v.phone ? `• ${v.phone}` : ''}</div>
+                  </div>
+                  {v.id === vendor.id ? (
+                    <span className="text-[10px] font-bold bg-emerald-600 text-white px-2 py-0.5 rounded-full">Selecionado</span>
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-neutral-400" />
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+

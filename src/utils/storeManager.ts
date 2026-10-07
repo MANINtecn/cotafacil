@@ -597,9 +597,9 @@ export function slugify(text: string): string {
 }
 
 /**
- * Constrói link ultra-limpo, curto e profissional para o fornecedor:
- * Formato: origin/[storeSlug]/[vendorSlug]/[codeSlug]
- * Exemplo: cotafacil.tecx.pro/thtecx/ferrrominas/cot9345
+ * Constrói link ultra-limpo, curto e direto para o fornecedor:
+ * Formato oficial: origin/[storeSlug]/[codigo]?v=[vendorId]
+ * Exemplo real: https://cotafacil.tecx.pro/super-central/COT-8942?v=v1
  */
 export function buildSupplierQuotationLink(
   quotation: Quotation,
@@ -612,12 +612,11 @@ export function buildSupplierQuotationLink(
 ): string {
   const origin = window.location.origin;
   const sSlug = storeSlug || slugify(storeName || 'loja') || 'loja';
-  const vSlug = slugify(vendor.company || vendor.name || vendor.id) || 'fornecedor';
-  const rawCode = quotation.code || quotation.id || 'cotacao';
-  const codeSlug = rawCode.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const rawCode = quotation.code || quotation.id || 'COT-001';
 
-  return `${origin}/${sSlug}/${vSlug}/${codeSlug}`;
+  return `${origin}/${sSlug}/${rawCode}?v=${encodeURIComponent(vendor.id)}`;
 }
+
 
 // Sample demo data loader (optional, if user wants to see populated dashboard)
 export function populateDemoData(): { stores: ShopkeeperStore[]; vendors: Vendor[]; products: Product[]; quotation: Quotation; invoices: BillingInvoice[] } {

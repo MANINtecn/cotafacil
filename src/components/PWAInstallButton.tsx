@@ -23,11 +23,15 @@ export const PWAInstallButton: React.FC<Props> = ({
   const handleInstallClick = async () => {
     setInstalling(true);
     try {
-      await install();
+      const res = await install();
+      if (res === 'guide' || isIOS) {
+        setShowIOSGuide(true);
+      }
     } finally {
       setInstalling(false);
     }
   };
+
 
   // Chromium / Android / Desktop flow
   if (isInstallable) {

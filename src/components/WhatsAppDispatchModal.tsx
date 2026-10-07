@@ -53,12 +53,43 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
     return `${quotation.deadlineHours} horas`;
   };
 
+  const getGreetingRecipient = (vendor: Vendor) => {
+    const rawName = (vendor.name || '').trim();
+    const rawCompany = (vendor.company || '').trim();
+
+    if (!rawName && !rawCompany) return '';
+    if (!rawName) return `*${rawCompany}*`;
+    if (!rawCompany) return `*${rawName}*`;
+
+    // Se nome e empresa forem iguais (ex: Distribuidora X e Distribuidora X)
+    if (rawName.toLowerCase() === rawCompany.toLowerCase()) {
+      return `*${rawCompany}*`;
+    }
+
+    // Se um contém o outro
+    if (rawCompany.toLowerCase().includes(rawName.toLowerCase())) {
+      return `*${rawCompany}*`;
+    }
+    if (rawName.toLowerCase().includes(rawCompany.toLowerCase())) {
+      return `*${rawName}*`;
+    }
+
+    // Se forem distintos (ex: Carlos e Distribuidora Bom Preço)
+    return `*${rawName}* (${rawCompany})`;
+  };
+
   const getMessageText = (vendor: Vendor) => {
     const link = getVendorLink(vendor);
     const deadline = getDeadlineReadable();
+    const recipient = getGreetingRecipient(vendor);
+    const sName = (storeName || '').trim();
+
+    const greetingLine = recipient ? `Olá, ${recipient}!\n\n` : `Olá!\n\n`;
+    const storeLine = sName ? `Aqui é da loja *${sName}*.\n` : '';
+
     return (
-      `Olá, *${vendor.name}* (${vendor.company})!\n\n` +
-      `Aqui é da loja *${storeName || 'Comércio'}*.\n` +
+      greetingLine +
+      storeLine +
       `Acabamos de abrir uma nova cotação: *${quotation.title}* (${quotation.code || 'B2B'}).\n\n` +
       `📦 *Total de itens:* ${productsCount} produtos\n` +
       `⏰ *Prazo final para resposta:* ${deadline}\n\n` +
@@ -67,6 +98,7 @@ export const WhatsAppDispatchModal: React.FC<Props> = ({
       `Aguardamos sua melhor proposta. Obrigado!`
     );
   };
+
 
   const handleOpenWhatsApp = (vendor: Vendor) => {
     const digits = (vendor.phone || '').replace(/\D/g, '');

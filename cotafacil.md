@@ -209,7 +209,56 @@ Realizada auditoria técnica minuciosa em todo o código-fonte para transformar 
 
 ---
 
+## 📅 Registro - 07/10/2026
+
+### 🚀 1. Correção Crítica: Recebimento Simultâneo de 50+ Fornecedores no Painel do Lojista
+* **Diagnóstico Profundo do Problema**:
+  - Testes diretos contra a API do Supabase revelaram que a tabela `quotations` estava rejeitando gravações com a mensagem `new row violates row-level security policy for table "quotations"` e ausência da coluna `bundle jsonb`.
+  - Como resultado, as propostas enviadas pelos fornecedores não conseguiam ser salvas no Supabase, ficando presas localmente sem alcançar o lojista.
+  - Além disso, no acesso genérico sem parâmetro de fornecedor, o sistema recorria ao primeiro fornecedor (`vendors[0]`), fazendo com que o 2º representante enviasse sob a identidade do 1º.
+* **Solução Implementada**:
+  - **Merge Acumulativo Atômico (`supabase.ts`)**: `saveSupplierProposalToSupabase` agora busca os dados atuais em tempo real antes de gravar. Ele mescla os novos preços preservando todos os preços anteriormente cadastrados pelos outros representantes. Com isso, seja com 2 ou 50 fornecedores, nenhuma proposta é sobrescrita ou perdida.
+  - **Seletor de Distribuidora (`SupplierPortalView.tsx`)**: Se o representante abrir o link genérico, um botão *"Trocar Distribuidora"* com modal interativo permite selecionar sua empresa na lista de fornecedores convidados.
+  - **Polling Ágil de 3.5s (`App.tsx`)**: Polling de sincronização reduzido para 3.5 segundos, garantindo atualização quase instantânea das tabelas comparativas assim que o fornecedor submete.
+  - **Script DDL Supabase Atualizado (`supabase_fix_multi_vendor.sql`)**: Adicionada a coluna `bundle jsonb`, criação de índice único `idx_quotations_code`, desativação de RLS e concessão de permissões `GRANT ALL` para anon e authenticated.
+
+---
+
+### 🔗 2. Eliminação Total de Links Gigantes & Padronização Estrita da URL
+* **Problema Identificado**:
+  - O botão *"Avisar a Loja no WhatsApp"* gerava um parâmetro `importProp` contendo um payload base64 gigantesco com o dicionário de todos os produtos e preços (mais de 1.500 caracteres), gerando links poluídos e assustadores para envio no WhatsApp.
+* **Solução Implementada**:
+  - **Link Curto Padronizado (`storeManager.ts`)**: Função `buildSupplierQuotationLink` padronizada estritamente no formato:
+    ```text
+    origin/[lojista]/[codigo]?v=[vendorId]
+    ```
+    *Exemplo*: `https://cotafacil.tecx.pro/super-central/COT-8942?v=v1` (~55 caracteres, limpo, direto e profissional).
+  - **Retorno Limpo do Fornecedor (`SupplierPortalView.tsx`)**: O botão de aviso no WhatsApp agora envia uma mensagem limpa informando quantidade de itens e valor total com o link limpo da loja (`origin/[lojista]/[codigo]`), sem nenhum dicionário em base64.
+
+---
+
+### 💬 3. Deduplicação Inteligente de Nomes no WhatsApp
+* **Problema Identificado**:
+  - Quando um fornecedor era cadastrado com o nome e a empresa idênticos (ex: "Mercado Central" e "Mercado Central"), a mensagem no WhatsApp gerava repetições constrangedoras como *"Olá, Mercado Central (Mercado Central)! Aqui é da loja Mercado Central..."*.
+* **Solução Implementada (`WhatsAppDispatchModal.tsx`)**:
+  - Criada a função `getGreetingRecipient`, que compara se o nome e a empresa são idênticos ou contidos um no outro, exibindo apenas um deles (`Olá, *Distribuidora XYZ*!`).
+  - Caso sejam distintos (ex: Carlos e Distribuidora Bom Preço), exibe de forma elegante: `Olá, *Carlos* (Distribuidora Bom Preço)!`.
+
+---
+
+### 📱 4. Banner Proativo de Instalação do PWA (Android, iOS & Desktop)
+* **Problema Identificado**:
+  - O botão de instalação do PWA dependia estritamente do evento `beforeinstallprompt`. Como muitos navegadores mobile (e o iOS Safari) não disparam esse evento de imediato, o botão ficava oculto (`return null`), impedindo que o usuário soubesse da disponibilidade do aplicativo.
+* **Solução Implementada (`PWAInstallBanner.tsx`, `usePWAInstall.ts`, `index.html`)**:
+  - **Banner Flutuante Proativo**: Card moderno e flutuante no rodapé com o ícone do CotaFácil, selo *"App Disponível"*, botão *"Instalar Agora"* e opção de adiar.
+  - **Disparo Nativo**: No Android, Chrome e Edge, aciona o prompt nativo do navegador caso disponível.
+  - **Guia Visual para iOS Safari**: Abre um modal ilustrado passo a passo explicando como tocar em Compartilhar e selecionar *"Adicionar à Tela de Início"*.
+  - **Tag Manifest Explícita**: Adicionada a tag `<link rel="manifest" href="/manifest.webmanifest" />` diretamente no `index.html`.
+
+---
+
 ## 🎯 Próximos Passos (Roadmap)
+
 - [x] Clone e configuração local do repositório `MANINtecn/cotafacil`.
 - [x] Diagnóstico do erro de autenticação e análise de viabilidade de custos.
 - [x] Criação do Diário de Bordo (`cotafacil.md`) e registro da mudança de arquitetura.
@@ -248,13 +297,22 @@ Realizada auditoria técnica minuciosa em todo o código-fonte para transformar 
     5. **Polling Fallback em Tempo Real**: Adicionado polling a cada 7 segundos para complementar o Supabase Realtime no painel do lojista, garantindo que propostas remotas apareçam instantaneamente na tela.
     6. **Script DDL Supabase**: Criado `supabase_fix_multi_vendor.sql` para adicionar a coluna `bundle jsonb` e permitir sincronização completa em nuvem.
 - [x] **Links Curtos e Ultra-Limpos com Slugs e Código da Lista (02/10/2026)**:
-  - **Formato Final Perfeito**: Eliminados todos os parâmetros gigantes de query string (`?d=...`, `?cot=...`, `?vn=...`). O link agora é 100% limpo, legível e direto:
-    `cotafacil.tecx.pro/[slug-da-loja]/[slug-do-fornecedor]/[codigo-da-cotação]`
-    (ex: `cotafacil.tecx.pro/thtecx/ferrrominas/cot9345`).
-  - **Identificação e Resolução Automática**: Ao abrir o link em qualquer celular ou navegador, o sistema extrai os 3 segmentos da rota, busca a cotação no Supabase e no cache local aceitando variações (com e sem traço), vincula o fornecedor automaticamente pelo slug e abre direto o portal de preenchimento.
-  - **Função Utilitária `slugify`**: Sanitiza nomes de lojas e fornecedores removendo acentos e caracteres especiais para formar URLs perfeitas.
-- [ ] **Ativação do Google OAuth no Supabase**: Acessar *Authentication > Providers > Google* no painel do Supabase com Client ID / Client Secret do Google Cloud Console e copiar o Callback URL do Supabase para o console do Google.
+  - Formato Final: `origin/[loja]/[codigo]?v=[id]` ou `origin/[loja]/[fornecedor]/[codigo]`.
+- [x] **Correção Crítica: Chegada de 50+ Fornecedores e Eliminação Total de Links Gigantes (07/10/2026)**:
+  - **Diagnóstico da Ausência de Preços**:
+    1. A tabela `quotations` no Supabase estava bloqueando gravações com `new row violates row-level security policy` e não possuía a coluna `bundle jsonb` nem o índice único em `code`. O script `supabase_fix_multi_vendor.sql` precisava ser executado no SQL Editor do Supabase.
+    2. Quando um fornecedor enviava sua proposta, se outro já havia enviado, a sobrescrita ocorria porque faltava um merge atômico que consultasse o estado atual do banco antes de salvar.
+    3. Quando o link era aberto sem `?v=`, o sistema recorria a `vendors[0]`, fazendo com que outros fornecedores cotassem sob o nome do primeiro.
+    4. O botão "Avisar a Loja no WhatsApp" no portal do fornecedor continha o parâmetro `importProp` codificado em base64 com todos os produtos e preços (o que gerava um "dicionário inteiro" gigante na mensagem).
+  - **Soluções Implementadas**:
+    1. **Link Curto e Limpo Padronizado**: Link oficial no formato `origin/[lojista]/[codigo]?v=[vendorId]` (ex: `https://cotafacil.tecx.pro/super-central/COT-8942?v=v1`), com ~55 caracteres.
+    2. **Eliminação do Link Gigante no Retorno**: O botão "Avisar a Loja no WhatsApp" agora envia uma mensagem limpa e profissional com o link curto da cotação (`origin/[lojista]/[codigo]`), sem nenhum dicionário em base64.
+    3. **Merge Acumulativo de Múltiplos Fornecedores (1 a 50+)**: `saveSupplierProposalToSupabase` agora busca os dados atuais do Supabase e mescla os preços e o status do fornecedor submetente sem sobrescrever os outros fornecedores.
+    4. **Seletor de Distribuidora**: Se um fornecedor abrir o link genérico da cotação, ele pode visualizar e trocar facilmente para sua distribuidora através de um botão no cabeçalho do portal.
+    5. **Polling de 3.5s**: Intervalo de atualização do painel do lojista reduzido para 3.5s para sincronização ágil.
+    6. **Script SQL Completo**: Atualizado `supabase_fix_multi_vendor.sql` com adição de `bundle jsonb`, `idx_quotations_code`, desativação de RLS e concessão de permissões `GRANT ALL`.
+    7. **Deduplicação de Nomes no WhatsApp**: Criada função inteligente `getGreetingRecipient` no `WhatsAppDispatchModal` que detecta quando o nome do representante e da empresa são idênticos ou redundantes, evitando mensagens repetitivas do tipo *"Olá, Loja X (Loja X)! Aqui é da Loja X"*.
+    8. **Banner Proativo de Instalação do PWA**: Criado o componente `PWAInstallBanner` flutuante no rodapé, exibindo o ícone do aplicativo e botão de instalação imediata com suporte nativo (Android/Chrome/Edge) e guia visual passo a passo para iOS Safari (Compartilhar ➔ Adicionar à Tela de Início).
 
-
-
+---
 

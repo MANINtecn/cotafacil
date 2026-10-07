@@ -26,6 +26,7 @@ import { ActiveQuotationDetails } from './components/ActiveQuotationDetails';
 import { ShopkeeperHomeOverview } from './components/ShopkeeperHomeOverview';
 import { ManageProductsModal } from './components/ManageProductsModal';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
+import { PWAInstallBanner } from './components/PWAInstallBanner';
 import {
   supabase,
   User,
@@ -332,15 +333,20 @@ export default function App() {
         } else if (segments.length === 2) {
           if (!['admin', 'super-admin'].includes(segments[0].toLowerCase())) {
             pathStoreSlug = segments[0];
-            if (/^cot[-0-9]/i.test(segments[1])) {
+            if (/^cot/i.test(segments[1])) {
               pathQuotationCode = segments[1];
             } else {
               pathVendorSlug = segments[1];
             }
           }
         } else if (segments.length === 1 && !['admin', 'super-admin'].includes(segments[0].toLowerCase())) {
-          pathStoreSlug = segments[0];
+          if (/^cot/i.test(segments[0])) {
+            pathQuotationCode = segments[0];
+          } else {
+            pathStoreSlug = segments[0];
+          }
         }
+
 
         const vParam = params.get('v') || params.get('vendorId');
         const cotParam = pathQuotationCode || params.get('cot') || params.get('cotacao');
@@ -726,7 +732,8 @@ export default function App() {
         } catch {
           // ignore network hiccups
         }
-      }, 7000);
+      }, 3500);
+
 
       return () => {
         isMounted = false;
@@ -1584,11 +1591,14 @@ export default function App() {
               products={products}
               initialPrices={prices[selectedVendorId] || {}}
               onSubmitProposal={handleSupplierSubmitProposal}
+              allVendors={vendors}
+              onSelectVendor={(vId) => setSelectedVendorId(vId)}
               onBackToApp={() => {
                 setCurrentUserRole(null);
                 setCurrentScreen('login');
               }}
             />
+
           </div>
         )}
 
@@ -1668,7 +1678,11 @@ export default function App() {
 
         {/* Banner Global de Consentimento de Cookies & LGPD */}
         <CookieConsentBanner />
+
+        {/* Banner Proativo de Instalação do PWA */}
+        <PWAInstallBanner />
       </div>
     </div>
   );
 }
+
