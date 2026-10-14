@@ -316,3 +316,14 @@ Realizada auditoria técnica minuciosa em todo o código-fonte para transformar 
 
 ---
 
+## 📅 Registro - 14/10/2026
+
+### 🛡️ Correção do Acesso do Super Administrador (`icaroetatiana@gmail.com`)
+* **Causa Raiz**:
+  - Ao digitar `icaroetatiana@gmail.com` na tela unificada de login ou ao clicar em "Entrar", o formulário acionava a rota padrão `onLoginAsLojista`, o que criava uma loja de exemplo e definia a sessão local como `role: 'lojista'`.
+  - O modal de contingência do Google também continha o e-mail pré-preenchido no campo de lojista.
+* **Soluções Implementadas**:
+  1. **Proteção Estrita em `handleLoginAsLojista`**: Detecta se o e-mail ou identificador informado pertence ao Super Admin (`isSuperAdminEmail`). Se for, cancela o fluxo de lojista e direciona imediatamente para o painel de administração (`handleSuperAdminLoginSuccess`).
+  2. **Autenticação Rigorosa e Estrita de Produção**: Em `UnifiedLoginView`, `SuperAdminLoginView` e `storeManager`, as credenciais oficiais do Super Admin (`icaroetatiana@gmail.com` / `0y10zg1p25T%`) são validadas de forma estrita contra a chave oficial e o Supabase Auth. Senhas incorretas são rejeitadas com erro explícito e nunca rebaixam o papel para lojista.
+  3. **Restauração Resiliente de Sessão**: Ao recarregar a página (F5 ou abertura do app), se a sessão ativa contiver o e-mail do Super Admin, a tela e o papel são automaticamente forçados para `admin` e `admin-billing`, evitando qualquer fallback para lojista.
+  4. **Limpeza da Base de Lojas**: Filtra lojas espúrias geradas com o slug ou e-mail de Super Admin na listagem de clientes.

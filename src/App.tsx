@@ -110,10 +110,15 @@ export default function App() {
         return 'super-admin-login';
       }
       const s = getActiveSession();
-      if (s && s.role) {
-        if (s.role === 'admin') return 'admin-billing';
-        if (s.role === 'fornecedor') return 'supplier-portal';
-        if (s.role === 'lojista') return s.screen || 'quotation';
+      if (s) {
+        if (s.email && (s.email.toLowerCase() === 'icaroetatiana@gmail.com' || isSuperAdminEmail(s.email))) {
+          return 'admin-billing';
+        }
+        if (s.role) {
+          if (s.role === 'admin') return 'admin-billing';
+          if (s.role === 'fornecedor') return 'supplier-portal';
+          if (s.role === 'lojista') return s.screen || 'quotation';
+        }
       }
     } catch {}
     return 'login';
@@ -121,15 +126,23 @@ export default function App() {
   const [currentUserRole, setCurrentUserRole] = useState<UserRole | null>(() => {
     try {
       const s = getActiveSession();
-      if (s && s.role) {
-        return s.role;
+      if (s) {
+        if (s.email && (s.email.toLowerCase() === 'icaroetatiana@gmail.com' || isSuperAdminEmail(s.email))) {
+          return 'admin';
+        }
+        if (s.role) {
+          return s.role;
+        }
       }
     } catch {}
     return null;
   });
 
   // Stores & Active Store (Restaura loja ativa da sessão salva)
-  const [stores, setStores] = useState<ShopkeeperStore[]>(() => getStoredStores());
+  const [stores, setStores] = useState<ShopkeeperStore[]>(() => {
+    const all = getStoredStores();
+    return all.filter((s) => !isSuperAdminEmail(s.email) && s.slug !== 'icaroetatiana');
+  });
   const [currentStore, setCurrentStore] = useState<ShopkeeperStore | null>(() => {
     try {
       const s = getActiveSession();
@@ -582,8 +595,15 @@ export default function App() {
 
   // Login do Lojista (com persistência de sessão e criação isolada de loja se nova)
   const handleLoginAsLojista = (slugOrEmail?: string) => {
-    const allStores = getStoredStores();
     const cleanIdentifier = (slugOrEmail || user?.email || '').trim().toLowerCase();
+
+    // Se for e-mail de Super Admin, NUNCA loga como lojista - direciona imediatamente para o painel de Super Admin!
+    if (cleanIdentifier === 'icaroetatiana@gmail.com' || isSuperAdminEmail(cleanIdentifier)) {
+      handleSuperAdminLoginSuccess();
+      return;
+    }
+
+    const allStores = getStoredStores().filter((s) => !isSuperAdminEmail(s.email) && s.slug !== 'icaroetatiana');
 
     let target = allStores.find(
       (s) => s.slug.toLowerCase() === cleanIdentifier || s.email.toLowerCase() === cleanIdentifier
@@ -1385,6 +1405,7 @@ export default function App() {
               onLoginAsLojista={handleLoginAsLojista}
               onLoginAsVendor={handleLoginAsVendor}
               onOpenSuperAdmin={() => setCurrentScreen('super-admin-login')}
+              onLoginAsSuperAdmin={handleSuperAdminLoginSuccess}
               onRegisterShopkeeper={handleRegisterShopkeeper}
               user={user}
               authLoading={authLoading}

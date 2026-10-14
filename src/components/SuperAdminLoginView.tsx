@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Lock, Mail, ShieldAlert, ArrowLeft, KeyRound, Eye, EyeOff, CheckCircle2, AlertCircle } from 'lucide-react';
 import { verifyAdminLogin, DEFAULT_ADMIN, getAdminCredentials, isSuperAdminEmail } from '../utils/storeManager';
-import { signInWithGoogle } from '../supabase';
+import { signInWithGoogle, signInWithEmail } from '../supabase';
 
 interface Props {
   onBackToApp: () => void;
@@ -17,20 +17,29 @@ export const SuperAdminLoginView: React.FC<Props> = ({ onBackToApp, onLoginSucce
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setErrorMsg(null);
 
-    setTimeout(() => {
-      const isValid = verifyAdminLogin(email, password);
-      if (isValid) {
+    const isValid = verifyAdminLogin(email, password);
+    if (isValid) {
+      onLoginSuccess();
+      return;
+    }
+
+    try {
+      const authUser = await signInWithEmail(email, password);
+      if (authUser && (authUser.email?.toLowerCase() === 'icaroetatiana@gmail.com' || isSuperAdminEmail(authUser.email))) {
         onLoginSuccess();
-      } else {
-        setErrorMsg('E-mail ou senha de Super Admin inválidos. Digite seu e-mail cadastrado ou faça login com o Google.');
-        setIsLoading(false);
+        return;
       }
-    }, 300);
+    } catch {
+      // Falha de autenticação
+    }
+
+    setErrorMsg('E-mail ou senha de Super Admin inválidos.');
+    setIsLoading(false);
   };
 
   const handleGoogleLogin = async () => {

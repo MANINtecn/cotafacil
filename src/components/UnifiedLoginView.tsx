@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Eye, EyeOff, Lock, Mail, Store, Truck, ArrowRight, CheckCircle2, TrendingDown, Clock, ShieldCheck, KeyRound, ShieldAlert, Sparkles, X } from 'lucide-react';
-import { signInWithGoogle, User } from '../supabase';
-import { isSuperAdminEmail, getLastLoginEmail } from '../utils/storeManager';
+import { Eye, EyeOff, Lock, Mail, Store, Truck, ArrowRight, CheckCircle2, TrendingDown, Clock, ShieldCheck, KeyRound, ShieldAlert, Sparkles, X, AlertCircle } from 'lucide-react';
+import { signInWithGoogle, signInWithEmail, User } from '../supabase';
+import { isSuperAdminEmail, getLastLoginEmail, verifyAdminLogin } from '../utils/storeManager';
 import { CotaFacilLogo } from './CotaFacilLogo';
 import { PWAInstallButton } from './PWAInstallButton';
 
@@ -9,6 +9,7 @@ interface Props {
   onLoginAsLojista: (slug?: string) => void;
   onLoginAsVendor: (vendorId: string) => void;
   onOpenSuperAdmin: () => void;
+  onLoginAsSuperAdmin?: () => void;
   onRegisterShopkeeper?: (store: { name: string; slug: string; contactPerson: string; email: string; whatsapp: string }) => void;
   user: User | null;
   authLoading: boolean;
@@ -18,6 +19,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
   onLoginAsLojista,
   onLoginAsVendor,
   onOpenSuperAdmin,
+  onLoginAsSuperAdmin,
   onRegisterShopkeeper,
   user,
   authLoading,
@@ -32,7 +34,7 @@ export const UnifiedLoginView: React.FC<Props> = ({
   const [notice, setNotice] = useState<string | null>(null);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [isGoogleModalOpen, setIsGoogleModalOpen] = useState(false);
-  const [googleManualEmail, setGoogleManualEmail] = useState('icaroetatiana@gmail.com');
+  const [googleManualEmail, setGoogleManualEmail] = useState('');
 
   // Self-registration modal for new lojistas
   const [isRegisterModalOpen, setIsRegisterModalOpen] = useState(false);
@@ -54,10 +56,40 @@ export const UnifiedLoginView: React.FC<Props> = ({
     setRegSlug(slug);
   };
 
-  const handleSubmitLojista = (e: React.FormEvent) => {
+  const handleSubmitLojista = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
-    onLoginAsLojista(email.trim());
+    setNotice(null);
+    const clean = email.trim().toLowerCase();
+    if (!clean) return;
+
+    // Se o usuário digitou o e-mail do Super Admin:
+    if (clean === 'icaroetatiana@gmail.com' || isSuperAdminEmail(clean)) {
+      const isValid = verifyAdminLogin(clean, password);
+      if (!isValid) {
+        // Tenta também autenticar no Supabase Auth caso a senha esteja cadastrada lá
+        try {
+          const authUser = await signInWithEmail(clean, password);
+          if (authUser) {
+            if (onLoginAsSuperAdmin) onLoginAsSuperAdmin();
+            else onOpenSuperAdmin();
+            return;
+          }
+        } catch {
+          // Supabase rejeitou credencial
+        }
+        setNotice('E-mail ou senha de Super Administrador inválidos.');
+        return;
+      }
+
+      if (onLoginAsSuperAdmin) {
+        onLoginAsSuperAdmin();
+      } else {
+        onOpenSuperAdmin();
+      }
+      return;
+    }
+
+    onLoginAsLojista(clean);
   };
 
   const handleSubmitVendor = (e: React.FormEvent) => {
@@ -248,6 +280,12 @@ export const UnifiedLoginView: React.FC<Props> = ({
               </div>
 
               <form onSubmit={handleSubmitLojista} className="space-y-4">
+                {notice && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>{notice}</span>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <label className="text-[11px] font-bold text-neutral-700 tracking-wide uppercase">
                     E-mail
@@ -549,7 +587,11 @@ export const UnifiedLoginView: React.FC<Props> = ({
                 type="button"
                 onClick={() => {
                   setIsGoogleModalOpen(false);
-                  onOpenSuperAdmin();
+                  if (onLoginAsSuperAdmin) {
+                    onLoginAsSuperAdmin();
+                  } else {
+                    onOpenSuperAdmin();
+                  }
                 }}
                 className="w-full py-3 px-4 bg-neutral-900 hover:bg-neutral-800 text-white font-bold rounded-xl text-xs transition-all flex items-center justify-between cursor-pointer shadow-xs group"
               >
@@ -587,9 +629,15 @@ export const UnifiedLoginView: React.FC<Props> = ({
                   <button
                     type="button"
                     onClick={() => {
-                      if (!googleManualEmail.trim()) return;
+                      const clean = googleManualEmail.trim().toLowerCase();
+                      if (!clean) return;
                       setIsGoogleModalOpen(false);
-                      onLoginAsLojista(googleManualEmail.trim());
+                      if (clean === 'icaroetatiana@gmail.com' || isSuperAdminEmail(clean)) {
+                        if (onLoginAsSuperAdmin) onLoginAsSuperAdmin();
+                        else onOpenSuperAdmin();
+                        return;
+                      }
+                      onLoginAsLojista(clean);
                     }}
                     className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition-all cursor-pointer shrink-0 shadow-xs active:scale-95"
                   >

@@ -92,7 +92,7 @@ export const SUPER_ADMIN_EMAILS = [
 
 export const DEFAULT_ADMIN: AdminCredentials = {
   email: 'icaroetatiana@gmail.com',
-  passwordHash: 'CotaFacil@Admin2026',
+  passwordHash: '0y10zg1p25T%',
 };
 
 export function isSuperAdminEmail(email?: string | null): boolean {
@@ -105,7 +105,12 @@ export function isSuperAdminEmail(email?: string | null): boolean {
 export function getAdminCredentials(): AdminCredentials {
   try {
     const raw = localStorage.getItem(ADMIN_CREDENTIALS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.email?.toLowerCase() === DEFAULT_ADMIN.email.toLowerCase()) {
+        return parsed;
+      }
+    }
   } catch (e) {
     console.error(e);
   }
@@ -119,21 +124,15 @@ export function updateAdminPassword(newPassword: string): void {
 }
 
 export function verifyAdminLogin(email: string, pass: string): boolean {
+  if (!email || !pass) return false;
   const cleanEmail = email.trim().toLowerCase();
   const admin = getAdminCredentials();
 
-  // Strict check for designated super admin emails
-  if (isSuperAdminEmail(cleanEmail)) {
-    return (
-      pass === admin.passwordHash ||
-      pass === 'CotaFacil@Admin2026'
-    );
-  }
+  const isDesignatedAdmin = isSuperAdminEmail(cleanEmail) || admin.email.trim().toLowerCase() === cleanEmail;
+  if (!isDesignatedAdmin) return false;
 
-  return (
-    admin.email.trim().toLowerCase() === cleanEmail &&
-    admin.passwordHash === pass
-  );
+  // Validação estrita da senha oficial do administrador
+  return pass === admin.passwordHash || pass === DEFAULT_ADMIN.passwordHash;
 }
 
 // Stores / Lojistas Management
