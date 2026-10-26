@@ -38,6 +38,7 @@ interface Props {
   onToggleBlockShopkeeper: (invoiceId: string) => void;
   onMarkAsPaid: (invoiceId: string) => void;
   onAddStore: (storeData: Omit<ShopkeeperStore, 'id' | 'createdAt'>) => void;
+  onUpdateStore?: (storeId: string, updates: Partial<ShopkeeperStore>) => void;
   onDeleteStore: (storeId: string) => void;
   onSelectStoreToView?: (store: ShopkeeperStore) => void;
   onClearData: () => void;
@@ -52,6 +53,7 @@ export const AdminBillingView: React.FC<Props> = ({
   onToggleBlockShopkeeper,
   onMarkAsPaid,
   onAddStore,
+  onUpdateStore,
   onDeleteStore,
   onSelectStoreToView,
   onClearData,
@@ -359,23 +361,63 @@ export const AdminBillingView: React.FC<Props> = ({
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="font-bold text-sm text-neutral-900">{store.name}</span>
                           <span className="text-xs text-neutral-400 font-mono-num">/{store.slug}</span>
-                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-700">
-                            {store.planName}
-                          </span>
-                          <span
-                            className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 ${
-                              store.status === 'Ativo'
-                                ? 'bg-emerald-600 text-white border-2 border-emerald-400 shadow-sm ring-1 ring-emerald-500/50'
-                                : store.status === 'Teste Grátis'
-                                ? 'bg-sky-100 text-sky-900 border border-sky-300 font-bold'
-                                : 'bg-rose-100 text-rose-900 border border-rose-300 font-bold'
-                            }`}
-                          >
-                            {store.status === 'Ativo' && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse" />
-                            )}
-                            {store.status}
-                          </span>
+                          {/* Seletor Rápido de Plano para o Super Admin */}
+                          {onUpdateStore ? (
+                            <select
+                              value={store.planName?.toLowerCase().includes('básico') ? 'Plano Básico' : 'Plano Pro'}
+                              onChange={(e) => {
+                                const newP = e.target.value;
+                                const newFee = newP === 'Plano Pro' ? 390 : 190;
+                                onUpdateStore(store.id, { planName: newP, monthlyFee: newFee });
+                              }}
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 hover:bg-neutral-200 text-neutral-800 border border-neutral-300 cursor-pointer focus:outline-hidden"
+                              title="Alterar plano da loja"
+                            >
+                              <option value="Plano Básico">Plano Básico (R$ 190)</option>
+                              <option value="Plano Pro">⭐ Plano Pro (R$ 390)</option>
+                            </select>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-neutral-100 text-neutral-700">
+                              {store.planName}
+                            </span>
+                          )}
+
+                          {/* Seletor Rápido de Status */}
+                          {onUpdateStore ? (
+                            <select
+                              value={store.status}
+                              onChange={(e) => {
+                                onUpdateStore(store.id, { status: e.target.value as any });
+                              }}
+                              className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider cursor-pointer border ${
+                                store.status === 'Ativo'
+                                  ? 'bg-emerald-600 text-white border-emerald-400'
+                                  : store.status === 'Teste Grátis'
+                                  ? 'bg-sky-100 text-sky-900 border-sky-300'
+                                  : 'bg-rose-100 text-rose-900 border-rose-300'
+                              }`}
+                              title="Alterar status do lojista"
+                            >
+                              <option value="Ativo">Ativo</option>
+                              <option value="Teste Grátis">Teste Grátis</option>
+                              <option value="Bloqueado">Bloqueado</option>
+                            </select>
+                          ) : (
+                            <span
+                              className={`px-3 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider inline-flex items-center gap-1.5 ${
+                                store.status === 'Ativo'
+                                  ? 'bg-emerald-600 text-white border-2 border-emerald-400 shadow-sm ring-1 ring-emerald-500/50'
+                                  : store.status === 'Teste Grátis'
+                                  ? 'bg-sky-100 text-sky-900 border border-sky-300 font-bold'
+                                  : 'bg-rose-100 text-rose-900 border border-rose-300 font-bold'
+                              }`}
+                            >
+                              {store.status === 'Ativo' && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-200 animate-pulse" />
+                              )}
+                              {store.status}
+                            </span>
+                          )}
                         </div>
 
                         <div className="text-xs text-neutral-500 flex items-center gap-3 flex-wrap">
@@ -863,12 +905,15 @@ export const AdminBillingView: React.FC<Props> = ({
                     </label>
                     <select
                       value={newPlanName}
-                      onChange={(e) => setNewPlanName(e.target.value)}
-                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-hidden focus:border-neutral-900 cursor-pointer"
+                      onChange={(e) => {
+                        const p = e.target.value;
+                        setNewPlanName(p);
+                        setNewMonthlyFee(p === 'Plano Pro' ? '390.00' : '190.00');
+                      }}
+                      className="w-full px-3 py-2 bg-white border border-neutral-200 rounded-xl text-xs text-neutral-900 focus:outline-hidden focus:border-neutral-900 cursor-pointer font-bold"
                     >
-                      <option value="Plano Starter">Starter</option>
-                      <option value="Plano Pro">Pro</option>
-                      <option value="Plano Enterprise">Enterprise</option>
+                      <option value="Plano Básico">Plano Básico (R$ 190,00/mês)</option>
+                      <option value="Plano Pro">⭐ Plano Pro (R$ 390,00/mês - 100k itens)</option>
                     </select>
                   </div>
                 </div>

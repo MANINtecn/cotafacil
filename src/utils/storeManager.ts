@@ -1,4 +1,5 @@
 import { ShopkeeperStore, Vendor, Product, Quotation, BillingInvoice, AppScreen, UserRole } from '../types';
+import { saveCatalogToIDB } from './idbCatalog';
 
 const ADMIN_CREDENTIALS_KEY = 'cotafacil_admin_credentials';
 const STORES_STORAGE_KEY = 'cotafacil_stores_data';
@@ -309,8 +310,8 @@ export function getActiveQuotationBundle(code?: string | null): QuotationBundle 
         localStorage.getItem(`cotafacil_bundle_${code.toUpperCase()}`);
       if (specific) return JSON.parse(specific);
 
-      const history = getStoredQuotationsHistory();
-      const found = history.find((b) => {
+      const history = getQuotationsHistory();
+      const found = history.find((b: QuotationBundle) => {
         const c = (b.quotation.code || b.quotation.id || '').toLowerCase().replace(/[^a-z0-9]/g, '');
         return c === codeSlug || c === code.toLowerCase();
       });
@@ -772,8 +773,20 @@ export function getStoredCatalogProducts(storeSlug?: string): Product[] {
 
 export function saveCatalogProducts(products: Product[], storeSlug?: string): void {
   try {
-    const key = storeSlug ? `${CATALOG_PRODUCTS_KEY}_${storeSlug}` : CATALOG_PRODUCTS_KEY;
-    localStorage.setItem(key, JSON.stringify(products));
+    const slug = storeSlug || 'default';
+    const key = `${CATALOG_PRODUCTS_KEY}_${slug}`;
+    
+    // Asynchronous IndexedDB storage for full volume (supports 100.000+ items)
+    saveCatalogToIDB(slug, products).catch(() => {});
+
+    // Sync to localStorage safely (if <= 1500 items to avoid 5MB quota errors)
+    if (products.length <= 1500) {
+      localStorage.setItem(key, JSON.stringify(products));
+      localStorage.setItem(CATALOG_PRODUCTS_KEY, JSON.stringify(products));
+    } else {
+      // Save top slice in localStorage for instantaneous boot
+      localStorage.setItem(key, JSON.stringify(products.slice(0, 1000)));
+    }
   } catch (e) {
     console.error('Erro ao salvar catálogo de produtos:', e);
   }
@@ -793,6 +806,28 @@ export function addCatalogProduct(
   return newProduct;
 }
 
+export function addCatalogProductsBatch(
+  productsData: Array<Omit<Product, 'id'> | Product>,
+  storeSlug?: string,
+  replaceAll = false
+): Product[] {
+  const existing = replaceAll ? [] : getStoredCatalogProducts(storeSlug);
+  const now = Date.now();
+  const processed: Product[] = productsData.map((item, idx) => {
+    if ('id' in item && item.id) {
+      return item as Product;
+    }
+    return {
+      ...item,
+      id: `cat-${now}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
+    };
+  });
+
+  const merged = replaceAll ? processed : [...processed, ...existing];
+  saveCatalogProducts(merged, storeSlug);
+  return merged;
+}
+
 export function updateCatalogProduct(
   productId: string,
   updates: Partial<Product>,
@@ -810,4 +845,17 @@ export function deleteCatalogProduct(productId: string, storeSlug?: string): Pro
   saveCatalogProducts(updated, storeSlug);
   return updated;
 }
+
+export function clearCatalogProducts(storeSlug?: string): void {
+  const slug = storeSlug || 'default';
+  const key = `${CATALOG_PRODUCTS_KEY}_${slug}`;
+  try {
+    localStorage.removeItem(key);
+    localStorage.removeItem(CATALOG_PRODUCTS_KEY);
+    saveCatalogToIDB(slug, []).catch(() => {});
+  } catch (e) {
+    console.error('Erro ao limpar catálogo:', e);
+  }
+}
+
 

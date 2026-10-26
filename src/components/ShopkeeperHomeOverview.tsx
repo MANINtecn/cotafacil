@@ -13,7 +13,8 @@ import {
   Phone,
   ArrowRight,
   CreditCard,
-  Package
+  Package,
+  Sparkles
 } from 'lucide-react';
 
 interface Props {
@@ -92,6 +93,28 @@ export const ShopkeeperHomeOverview: React.FC<Props> = ({
                 <span className="text-xs text-neutral-400 font-mono-num">
                   /{store?.slug || 'minha-loja'}
                 </span>
+
+                {/* Destaque Claro do Plano do Lojista */}
+                <div
+                  onClick={onOpenBilling}
+                  className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400/25 via-emerald-400/25 to-emerald-500/25 text-emerald-300 border border-emerald-400/60 shadow-sm cursor-pointer hover:border-emerald-300 transition-all hover:scale-105"
+                  title="Ver detalhes da assinatura e mensalidade da loja"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span>
+                    {store?.planName || (store?.status === 'Teste Grátis' ? 'Plano Pro (Teste Grátis 7 dias)' : 'Plano Pro')}
+                  </span>
+                  {store?.status === 'Teste Grátis' && (
+                    <span className="text-[9px] px-1.5 py-0.2 bg-emerald-400 text-neutral-950 font-black rounded-full shadow-2xs">
+                      7 dias grátis
+                    </span>
+                  )}
+                  {store?.status === 'Ativo' && (
+                    <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/40 text-emerald-200 font-bold rounded-full border border-emerald-400/60">
+                      Ativo
+                    </span>
+                  )}
+                </div>
               </div>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white">
                 {store?.name || 'Minha Loja'}

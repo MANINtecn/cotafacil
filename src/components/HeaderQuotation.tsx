@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Quotation, ShopkeeperStore } from '../types';
 import { User } from '../supabase';
-import { Clock, ShoppingCart, Store, Building2, LogOut, PlusCircle, History, CreditCard, Package } from 'lucide-react';
+import { Clock, ShoppingCart, Store, Building2, LogOut, PlusCircle, History, CreditCard, Package, Sparkles } from 'lucide-react';
 import { PWAInstallButton } from './PWAInstallButton';
 
 interface Props {
@@ -96,6 +96,26 @@ export const HeaderQuotation: React.FC<Props> = ({
                 )}
               </div>
 
+              {/* Destaque Claro do Plano do Lojista */}
+              {store && (
+                <button
+                  type="button"
+                  onClick={onOpenBilling}
+                  title="Clique para ver detalhes do plano da sua loja e faturamento"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase tracking-wider bg-gradient-to-r from-amber-400/20 via-emerald-400/20 to-emerald-500/20 text-emerald-900 border border-emerald-400 hover:border-emerald-500 shadow-2xs cursor-pointer transition-all hover:scale-105"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>
+                    {store.planName || (store.status === 'Teste Grátis' ? 'Plano Pro (Teste Grátis 7 dias)' : 'Plano Pro')}
+                  </span>
+                  {store.status === 'Teste Grátis' && (
+                    <span className="text-[9px] px-1.5 py-0.2 bg-emerald-600 text-white rounded-full font-bold">
+                      7 dias
+                    </span>
+                  )}
+                </button>
+              )}
+
               <span className="text-neutral-300 hidden sm:inline">•</span>
 
               <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-neutral-100 border border-neutral-200 text-neutral-800 text-[11px] font-bold">
@@ -153,6 +173,19 @@ export const HeaderQuotation: React.FC<Props> = ({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
                 <span>{quotation.status || 'Em Cotação'}</span>
               </div>
+
+              {/* Plan Badge in Detail */}
+              {store && (
+                <button
+                  type="button"
+                  onClick={onOpenBilling}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-neutral-100 text-neutral-800 border border-neutral-300 hover:bg-neutral-200 cursor-pointer"
+                  title="Ver plano da loja"
+                >
+                  <Sparkles className="w-3 h-3 text-amber-500" />
+                  <span>{store.planName || 'Plano Pro'}</span>
+                </button>
+              )}
 
               <span className="text-neutral-300 hidden sm:inline">•</span>
 

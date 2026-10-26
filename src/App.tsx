@@ -67,6 +67,8 @@ import {
   QuotationBundle,
   getStoredCatalogProducts,
   addCatalogProduct,
+  addCatalogProductsBatch,
+  clearCatalogProducts,
   updateCatalogProduct,
   deleteCatalogProduct,
   saveActiveSession,
@@ -75,10 +77,9 @@ import {
   updateActiveSessionScreen,
   ActiveSession
 } from './utils/storeManager';
+import { loadCatalogFromIDB } from './utils/idbCatalog';
 import {
   Info,
-  Smartphone,
-  Monitor,
   ShoppingBag,
   Building2,
   PlusCircle,
@@ -86,7 +87,8 @@ import {
   CheckCircle2,
   Store,
   History,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 
 const INITIAL_CLEAN_QUOTATION: Quotation = {
@@ -180,9 +182,6 @@ export default function App() {
   const [selectedVendorId, setSelectedVendorId] = useState<string>('v1');
   const [currentScenario, setCurrentScenario] = useState<'A' | 'B'>('A');
 
-  // Viewport mode toggle: 'responsive' (full desktop layout) or 'mobile-mockup' (480px smartphone frame)
-  const [devicePreviewMode, setDevicePreviewMode] = useState<'responsive' | 'mobile-mockup'>('responsive');
-
   // Modals & Drawers
   const [isOrdersDrawerOpen, setIsOrdersDrawerOpen] = useState(false);
   const [isManageVendorsModalOpen, setIsManageVendorsModalOpen] = useState(false);
@@ -190,6 +189,17 @@ export default function App() {
   const [catalogProducts, setCatalogProducts] = useState<Product[]>(() =>
     getStoredCatalogProducts(currentStore?.slug)
   );
+
+  // Hydrate high-capacity catalog from IndexedDB (supports 100.000+ items)
+  useEffect(() => {
+    if (currentStore?.slug) {
+      loadCatalogFromIDB(currentStore.slug).then((items) => {
+        if (items && items.length > 0) {
+          setCatalogProducts(items);
+        }
+      });
+    }
+  }, [currentStore?.slug]);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isBillingModalOpen, setIsBillingModalOpen] = useState(false);
@@ -1088,6 +1098,14 @@ export default function App() {
     setCatalogProducts(updated);
   };
 
+  const handleImportCatalogProductsBatch = (
+    productsData: Array<Omit<Product, 'id'> | Product>,
+    replaceAll: boolean
+  ) => {
+    const updated = addCatalogProductsBatch(productsData, currentStore?.slug, replaceAll);
+    setCatalogProducts(updated);
+  };
+
   // --- QUOTATION CREATION / LAUNCH ---
   const handleLaunchQuotation = async (
     newTitle: string,
@@ -1169,6 +1187,14 @@ export default function App() {
     const created = addStore(storeData);
     setStores(getStoredStores());
     setInvoices(getStoredInvoices());
+  };
+
+  const handleAdminUpdateStore = (storeId: string, updates: Partial<ShopkeeperStore>) => {
+    const updated = updateStore(storeId, updates);
+    setStores(updated);
+    if (currentStore?.id === storeId) {
+      setCurrentStore((prev) => (prev ? { ...prev, ...updates } : null));
+    }
   };
 
   const handleAdminDeleteStore = (storeId: string) => {
@@ -1308,25 +1334,23 @@ export default function App() {
     }, 400);
   };
 
-  const isMockup = devicePreviewMode === 'mobile-mockup';
-
   return (
-    <div className="min-h-screen bg-neutral-100 flex flex-col items-center selection:bg-neutral-900 selection:text-white">
-      {/* Top Floating Viewport Mode Switcher (Desktop Widescreen vs Mobile Simulator) */}
+    <div className="min-h-screen bg-neutral-100 flex flex-col items-center selection:bg-neutral-900 selection:text-white w-full">
+      {/* Top Floating Bar */}
       <nav
         aria-label="Controle de visualização do app"
-        className="w-full bg-neutral-950 text-white px-4 lg:px-8 py-2 flex items-center justify-between text-xs font-medium border-b border-neutral-800 shadow-md"
+        className="w-full bg-neutral-950 text-white px-4 lg:px-8 py-2.5 flex items-center justify-between text-xs font-medium border-b border-neutral-800 shadow-md sticky top-0 z-40"
       >
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 font-bold tracking-tight text-white">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-1.5 font-bold tracking-tight text-white shrink-0">
             <span className="w-2 h-2 rounded-full bg-emerald-400"></span>
             <span>CotaFácil B2B</span>
           </div>
 
           {currentStore && currentUserRole === 'lojista' && (
-            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-neutral-800 text-[11px] text-neutral-400">
+            <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-neutral-800 text-[11px] text-neutral-400 truncate">
               <span>Loja Ativa:</span>
-              <strong className="text-white">{currentStore.name}</strong>
+              <strong className="text-white truncate">{currentStore.name}</strong>
             </div>
           )}
 
@@ -1337,39 +1361,32 @@ export default function App() {
           )}
         </div>
 
-        {/* Viewport Mode Switcher: Desktop vs Mobile Mockup */}
-        <div className="flex items-center gap-1 bg-neutral-900 p-0.5 rounded-lg border border-neutral-800 text-[11px]">
-          <button
-            onClick={() => setDevicePreviewMode('responsive')}
-            title="Visualizar em Tela Cheia / Desktop Widescreen"
-            className={`px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-              devicePreviewMode === 'responsive'
-                ? 'bg-neutral-800 text-white font-bold shadow-xs'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Monitor className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Versão Desktop</span>
-          </button>
-
-          <button
-            onClick={() => setDevicePreviewMode('mobile-mockup')}
-            title="Visualizar no Simulador Mobile (480px)"
-            className={`px-2.5 py-1 rounded-md font-medium transition-all flex items-center gap-1.5 cursor-pointer ${
-              devicePreviewMode === 'mobile-mockup'
-                ? 'bg-neutral-800 text-white font-bold shadow-xs'
-                : 'text-neutral-400 hover:text-white'
-            }`}
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Simulador Mobile</span>
-          </button>
+        {/* Right side: Plan Indicator & Quick Billing */}
+        <div className="flex items-center gap-2 shrink-0">
+          {currentStore && currentUserRole === 'lojista' && (
+            <button
+              type="button"
+              onClick={() => setIsBillingModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-neutral-900 hover:bg-neutral-800 text-white border border-neutral-700/80 cursor-pointer transition-all shadow-xs hover:border-emerald-500/50"
+              title="Ver detalhes da assinatura e mensalidade da loja"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+              <span className="font-extrabold text-emerald-400 text-xs">
+                {currentStore.planName || (currentStore.status === 'Teste Grátis' ? 'Plano Pro (Teste Grátis 7 dias)' : 'Plano Pro')}
+              </span>
+              {currentStore.status === 'Teste Grátis' && (
+                <span className="text-[9px] px-1.5 py-0.2 bg-emerald-500/20 text-emerald-300 rounded font-bold border border-emerald-500/30">
+                  7 dias
+                </span>
+              )}
+            </button>
+          )}
         </div>
       </nav>
 
       {/* Super Admin Impersonation Banner */}
       {isSuperAdminViewing && (
-        <div className="w-full bg-amber-400 text-neutral-950 px-4 py-2.5 text-xs font-bold flex items-center justify-between shadow-md sticky top-0 z-50 border-b border-amber-500">
+        <div className="w-full bg-amber-400 text-neutral-950 px-4 py-2.5 text-xs font-bold flex items-center justify-between shadow-md sticky top-10 z-50 border-b border-amber-500">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-neutral-950 animate-pulse"></span>
             <span>Modo Super Admin: Inspecionando Loja <strong>{currentStore?.name}</strong></span>
@@ -1388,14 +1405,8 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Container Wrapper: Full width responsive or Mobile Mockup frame */}
-      <div
-        className={`w-full transition-all duration-300 flex-1 flex flex-col justify-start ${
-          isMockup
-            ? 'max-w-md my-6 bg-white min-h-[840px] rounded-3xl shadow-2xl border-4 border-neutral-800 overflow-hidden'
-            : 'w-full bg-neutral-50/60'
-        }`}
-      >
+      {/* Main Container Wrapper: Naturally full-width and responsive */}
+      <div className="w-full flex-1 flex flex-col justify-start bg-neutral-50/60">
         {/* ======================================================== */}
         {/* 1. TELA DE LOGIN UNIFICADA                               */}
         {/* ======================================================== */}
@@ -1437,6 +1448,7 @@ export default function App() {
               onToggleBlockShopkeeper={handleAdminToggleBlock}
               onMarkAsPaid={handleAdminMarkAsPaid}
               onAddStore={handleAdminAddStore}
+              onUpdateStore={handleAdminUpdateStore}
               onDeleteStore={handleAdminDeleteStore}
               onSelectStoreToView={(st) => {
                 setCurrentStore(st);
@@ -1638,9 +1650,12 @@ export default function App() {
           isOpen={isManageProductsModalOpen}
           onClose={() => setIsManageProductsModalOpen(false)}
           catalogProducts={catalogProducts}
+          store={currentStore}
           onAddProduct={handleAddCatalogProduct}
           onUpdateProduct={handleUpdateCatalogProduct}
           onDeleteProduct={handleDeleteCatalogProduct}
+          onImportBatch={handleImportCatalogProductsBatch}
+          onOpenBilling={() => setIsBillingModalOpen(true)}
           onSelectForQuotation={(p) => {
             setIsManageProductsModalOpen(false);
             setLaunchInitialProducts((prev) => [...prev, p]);

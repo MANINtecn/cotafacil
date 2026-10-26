@@ -22,6 +22,8 @@ export interface Product {
   quantity: number;
   unit: string;
   benchmarkPrice?: number;
+  code?: string;
+  ncm?: string;
 }
 
 export interface Vendor {

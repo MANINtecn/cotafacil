@@ -15,7 +15,8 @@ import {
   Receipt,
   Download,
   Lock,
-  ChevronRight
+  ChevronRight,
+  ArrowLeft
 } from 'lucide-react';
 import { ShopkeeperStore, BillingInvoice } from '../types';
 import { formatCurrencyBRL } from '../utils/calculations';
@@ -103,21 +104,31 @@ export const ShopkeeperBillingModal: React.FC<Props> = ({
     <div className="fixed inset-0 z-50 bg-neutral-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl max-w-2xl w-full p-5 sm:p-7 space-y-6 border border-neutral-200 shadow-2xl my-6 animate-in fade-in zoom-in-95 duration-150">
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-neutral-100">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold shrink-0 border border-emerald-500/20">
+        <div className="flex items-center justify-between pb-4 border-b border-neutral-100 gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              type="button"
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 text-xs font-bold transition-all cursor-pointer shadow-2xs active:scale-[0.98] shrink-0"
+              title="Voltar ao Painel da Loja"
+            >
+              <ArrowLeft className="w-4 h-4 text-neutral-900" />
+              <span>Voltar</span>
+            </button>
+
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold shrink-0 border border-emerald-500/20 hidden sm:flex">
               <CreditCard className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-neutral-900">
-                  Assinatura & Mensalidade da Loja
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base font-bold text-neutral-900 truncate">
+                  Mensalidade & Assinatura
                 </h3>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800">
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 shrink-0">
                   Mercado Pago
                 </span>
               </div>
-              <p className="text-xs text-neutral-500 mt-0.5">
+              <p className="text-xs text-neutral-500 mt-0.5 truncate">
                 {store?.name || 'Sua Loja'} • Vencimento todo dia {store?.dueDay || 10}
               </p>
             </div>
@@ -126,7 +137,8 @@ export const ShopkeeperBillingModal: React.FC<Props> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 transition-colors cursor-pointer"
+            className="p-2 rounded-xl text-neutral-400 hover:text-neutral-900 hover:bg-neutral-100 transition-colors cursor-pointer shrink-0"
+            title="Fechar e Voltar"
           >
             <X className="w-5 h-5" />
           </button>
@@ -402,15 +414,19 @@ export const ShopkeeperBillingModal: React.FC<Props> = ({
               </form>
             )}
 
-            {/* Plug & Play Gateway Details Note */}
-            <div className="pt-2 border-t border-neutral-100 flex items-center justify-between text-[11px] text-neutral-400">
+            {/* Plug & Play Gateway Details Note & Return button */}
+            <div className="pt-3 border-t border-neutral-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-neutral-400">
               <span className="flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
                 <span>Processado com segurança via Mercado Pago Gateway</span>
               </span>
-              <span className="font-mono-num">
-                {mercadoPago.environment === 'production' ? 'Modo Produção' : 'Modo Sandbox'}
-              </span>
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-800 font-bold text-xs cursor-pointer transition-colors text-center"
+              >
+                ← Voltar ao Painel
+              </button>
             </div>
           </>
         )}
